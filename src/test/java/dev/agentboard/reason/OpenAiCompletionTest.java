@@ -1,7 +1,6 @@
 package dev.agentboard.reason;
 
 import dev.agentboard.config.BoardProperties;
-import dev.agentboard.swarm.SwarmSkills;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 import java.util.Map;
@@ -23,12 +22,6 @@ class OpenAiCompletionTest {
     @Test void completedCompactJsonIsParsedNormally(){
         var response=json.valueToTree(Map.of("status","completed","usage",Map.of("input_tokens",100,"output_tokens",50),"output",java.util.List.of(Map.of("content",java.util.List.of(Map.of("type","output_text","text","{\"summary\":\"done\",\"items\":[]}"))))));
         assertThat(client.decode(response,1600).answer().path("summary").asText()).isEqualTo("done");
-    }
-    @Test void analysisSchemasHaveBoundedTextAndExcludeUnusedDraftFields(){
-        @SuppressWarnings("unchecked") var properties=(Map<String,Object>)SwarmSkills.schema(2).get("properties");
-        assertThat(properties).containsOnlyKeys("summary","items");assertThat(properties.get("summary").toString()).contains("maxLength=300");
-        @SuppressWarnings("unchecked") var editor=(Map<String,Object>)SwarmSkills.schema(5).get("properties");assertThat(editor).containsKey("edits").doesNotContainKey("document");
-        assertThat(SwarmSkills.AGENTS.get(1).outputTokens()).isGreaterThan(900);
     }
     @org.junit.jupiter.api.Test void parsesFinalAnswerWithoutConcatenatingIntermediateCommentary(){
         var envelope=json.valueToTree(java.util.Map.of("status","completed","usage",java.util.Map.of(),"output",java.util.List.of(

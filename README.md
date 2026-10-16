@@ -48,23 +48,21 @@ A failure prints the step that broke and saves `target/smoke/failure.png` and `t
 
 ## Create your team
 
-Ten reusable skills are available under **Agents**. No agents or workflows are created automatically. Press **Create agent**, choose a reusable skill from the list (or create a new one), give the agent a purpose, a name and a model, then add agents in **Workflows** and press **Connect** on a card to send its result to another agent. Workflows save automatically. Instructions and tool permissions are editable; started runs pin their definitions.
+Ten reusable skills are available under **Agents**. **Create agent** starts with a dropdown of them (or create a new skill), then asks for a purpose, a name, an OpenAI model and an input source. Add agents in **Workflows** and press **Connect** on a card to send its result to another agent; workflows save automatically.
 
-Follow [the manual skill/workflow guide](docs/reusable-skills.md) for a four-agent GitHub issue/impact report, a three-agent RSS/Hacker News digest and an optional ten-agent combined briefing. Every new reasoning execution uses OpenAI; tool collection alone is not a model result.
+For a ready-made team of ten agents and a ten-agent workflow, start with `bash ./scripts/start-local.sh --demo` (Docker: see `docker-compose.yml`). Agents, skills and workflows are data: a skill is a JSON record, an agent a YAML file or a form, a workflow a JSON graph. See [skills, agents and workflows](docs/reusable-skills.md).
 
 ## Evidence and controls
 
-- Short updates appear in the common searchable feed; complete findings, citations, uncertainty and tool traces remain in run evidence.
-- Every receiver waits for all incoming results from the same execution. Cycles are rejected; independent branches may overlap.
-- GitHub analysis pins a commit and validates source paths/line citations. It proposes changes without editing code or running repository tests.
-- Model requests, source excerpts, context size, concurrency, queue admission and estimated budget are bounded. Unknown request outcomes retain their reservation. Retries require an explicit rerun.
-- Feed clearing offers one hour, 24 hours, seven days and all time; execution history and evidence are retained.
-- Historical non-model records keep their original provenance. Existing agent definitions normalize to OpenAI for future execution without replaying old work.
+- Short updates appear in the searchable feed; complete findings, citations, uncertainty and tool traces stay in each run's evidence.
+- Every receiver waits for all incoming results. Cycles are rejected; independent branches may overlap.
+- Run parameters (repository, issue, revision, feed address) are asked for per run and have no defaults. GitHub analysis pins a commit and validates source paths and line citations. Agents propose; they never edit code.
+- Model requests, source excerpts, context size, concurrency and estimated budget are bounded. Unknown request outcomes keep their reservation. Retries are explicit.
+- Feed clearing offers one hour, 24 hours, seven days or all time; run history and evidence are kept.
 
-## Architecture and deployment
+## Documentation
 
-The Java namespace is `dev.agentboard`. Orchestration lives in `workflow/WorkflowService`; model/tool execution in `reason/AgentModelRuntime`; source tools in `reason/ReadTools`. Definitions and edges are data, with up to 50 nodes per workflow.
-
-The supplied deployment recipes target one application instance with H2 or PostgreSQL; PostgreSQL runtime is not yet verified in this environment. See [deployment and scaling](docs/scale.md) for diagrams, a PostgreSQL/queue recipe, cloud/on-prem instructions and the prerequisites for multiple application instances. Runtime verification and limitations are recorded in [validation](docs/validation.md).
-
-The résumé reviewer remains outside the main demo and requires OpenAI for any new execution. No hosted cloud service is provisioned.
+- [Design](docs/design.md): requirements, architecture, data model, scaling, security, limits.
+- [Skills, agents and workflows](docs/reusable-skills.md): how to use and extend them.
+- [Deployment and on-prem](docs/scale.md): Docker, PostgreSQL, running on a company server.
+- [What has been verified](docs/validation.md): and what has not.

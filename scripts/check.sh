@@ -9,6 +9,7 @@
 #   scripts/check.sh --no-build reuse the jar exactly as it is
 #   scripts/check.sh --full     also run the Java tests (./mvnw test) first
 #   scripts/check.sh --token    test the board as deployed for others (BOARD_AUTH=token)
+#   scripts/check.sh --demo     test the example team (ten agents + workflow, as start-local.sh --demo)
 #
 # Environment: JAR (jar path), CHROME_PATH (browser), SMOKE_KEEP=1 (keep the temp folder)
 set -euo pipefail
@@ -17,13 +18,15 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MODE=build
 FULL=0
 AUTH=open
+DEMO=0
 for arg in "$@"; do
   case "$arg" in
     --fast) MODE=fast ;;
     --no-build) MODE=none ;;
     --full) FULL=1 ;;
     --token) AUTH=token ;;
-    -h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --demo) DEMO=1 ;;
+    -h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $arg (try --help)" >&2; exit 2 ;;
   esac
 done
@@ -69,6 +72,11 @@ trap cleanup EXIT INT TERM
 PORT="$(node -e "const s=require('net').createServer();s.listen(0,'127.0.0.1',()=>{console.log(s.address().port);s.close()})")"
 BASE="http://127.0.0.1:$PORT"
 EXTRA=("--board.auth=$AUTH")
+SCRIPT=smoke-ui.cjs
+if [ "$DEMO" = 1 ]; then
+  EXTRA+=("--board.agents-dir=$ROOT/examples/agents" "--board.workflows-dir=$ROOT/examples/workflows")
+  SCRIPT=smoke-demo.cjs
+fi
 if [ "$MODE" = fast ]; then
   EXTRA+=("--spring.web.resources.static-locations=file:$ROOT/src/main/resources/static/")
 fi
@@ -103,7 +111,7 @@ fi
 # 4. Browser test --------------------------------------------------------------------------
 say "Browser checks"
 set +e
-BOARD_TEST_URL="$BASE" BOARD_TEST_TOKEN_FILE="$TOKEN_FILE" SMOKE_OUT="$OUT" node "$ROOT/scripts/smoke-ui.cjs"
+BOARD_TEST_URL="$BASE" BOARD_TEST_TOKEN_FILE="$TOKEN_FILE" SMOKE_OUT="$OUT" node "$ROOT/scripts/$SCRIPT"
 rc=$?
 set -e
 

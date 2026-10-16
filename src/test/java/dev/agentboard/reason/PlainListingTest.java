@@ -12,6 +12,6 @@ class PlainListingTest {
   var runtime=new AgentModelRuntime(model,mock(ReadTools.class),mock(AgentReportStore.class),new tools.jackson.databind.ObjectMapper());
   var a=new AgentDefinition("a","A","Review","test",null,"company",List.of(),null,List.of(),"Review",List.of(),true);
   assertThatThrownBy(()->runtime.execute(a,Observation.of("empty",List.of(),"","low"),new RunContext(1,a,"manual","test",0,Map.of()))).hasMessageContaining("OPENAI_API_KEY");
-  verify(model,never()).requestResponse(anyMap(),anyLong(),anyBoolean());
+  verify(model,never()).requestResponse(anyMap(),anyLong());
  }
 }

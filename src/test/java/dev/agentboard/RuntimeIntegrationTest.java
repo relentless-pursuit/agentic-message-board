@@ -47,17 +47,8 @@ class RuntimeIntegrationTest {
         mvc.perform(post("/api/benchmarks").contentType("application/json").content("{\"agents\":1,\"live\":false}"))
                 .andExpect(status().isUnauthorized());
         mvc.perform(get("/api/model-usage")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/skill-jobs/options")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/skill-jobs")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/skill-jobs/example/artifacts/0")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/swarm")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/swarm/options")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/swarm/1/documents/resume.docx")).andExpect(status().isUnauthorized());
-        mvc.perform(post("/api/swarm/1/approve").contentType("application/json").content("{\"choices\":[]}")).andExpect(status().isUnauthorized());
         String admin=tokens.mint(null,Set.of("admin"),"runtime-test");
         mvc.perform(get("/api/model-usage").header("Authorization","Bearer "+admin)).andExpect(status().isOk());
-        mvc.perform(get("/api/swarm/options").header("Authorization","Bearer "+admin)).andExpect(status().isOk()).andExpect(jsonPath("$.agents.length()").value(10));
-        mvc.perform(multipart("/api/swarm/source").param("url","http://127.0.0.1/private").header("Authorization","Bearer "+admin)).andExpect(status().isBadRequest());
         mvc.perform(post("/api/benchmarks").header("Authorization","Bearer "+admin).contentType("application/json").content("{\"agents\":11,\"live\":false}"))
                 .andExpect(status().isBadRequest());
     }

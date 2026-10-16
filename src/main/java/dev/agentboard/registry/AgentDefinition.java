@@ -28,16 +28,18 @@ public record AgentDefinition(
         String inboundSecret,
         String reasoningProvider,
         /** OpenAI model for this agent, e.g. gpt-5.4-mini. Empty means the board's default model. */
-        String model) {
+        String model,
+        /** Id of the reusable skill whose instructions this agent follows (see the skills library). */
+        String skill) {
 
     public AgentDefinition(String handle,String name,String function,String owner,String contact,String visibility,List<String> tags,
                            Trigger trigger,List<ObserveStep> observe,String reason,List<ActStep> act,Boolean enabled,String inboundSecret,String reasoningProvider){
-        this(handle,name,function,owner,contact,visibility,tags,trigger,observe,reason,act,enabled,inboundSecret,reasoningProvider,null);
+        this(handle,name,function,owner,contact,visibility,tags,trigger,observe,reason,act,enabled,inboundSecret,reasoningProvider,null,null);
     }
 
     public AgentDefinition(String handle,String name,String function,String owner,String contact,String visibility,List<String> tags,
                            Trigger trigger,List<ObserveStep> observe,String reason,List<ActStep> act,Boolean enabled,String inboundSecret){
-        this(handle,name,function,owner,contact,visibility,tags,trigger,observe,reason,act,enabled,inboundSecret,null,null);
+        this(handle,name,function,owner,contact,visibility,tags,trigger,observe,reason,act,enabled,inboundSecret,null,null,null);
     }
 
     public AgentDefinition(String handle, String name, String function, String owner, String contact,
@@ -66,7 +68,8 @@ public record AgentDefinition(
                 reason,
                 act == null ? List.of() : act,
                 enabled == null || enabled, inboundSecret, reasoningProvider==null || List.of("template","simulation","claude").contains(reasoningProvider)?"openai":reasoningProvider,
-                model == null || model.isBlank() ? null : model.trim());
+                model == null || model.isBlank() ? null : model.trim(),
+                skill == null || skill.isBlank() ? null : skill.trim());
     }
 
     public List<String> connectorNames() {

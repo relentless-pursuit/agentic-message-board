@@ -2,12 +2,21 @@
 # Start Agent Board on this computer at http://127.0.0.1:${PORT:-8087}/ (no board token needed).
 #
 #   ./scripts/start-local.sh             build if the source changed, then start
+#   ./scripts/start-local.sh --demo      also load the ten example agents and the ten-agent workflow (examples/)
 #   PORT=8090 ./scripts/start-local.sh   use another port
 #
 # Settings come from your shell or from a .env file in this folder (see .env.example).
 # A value already set in your shell wins over .env.
 set -euo pipefail
 cd "$(cd "$(dirname "$0")/.." && pwd)"
+
+for arg in "$@"; do
+  case "$arg" in
+    --demo) export AGENTS_DIR="${AGENTS_DIR:-examples/agents}" BOARD_WORKFLOWS_DIR="${BOARD_WORKFLOWS_DIR:-examples/workflows}" ;;
+    -h|--help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "Unknown option: $arg (try --help)" >&2; exit 2 ;;
+  esac
+done
 
 # 1. Settings from .env (non-empty values only, never overriding the shell) ----------------------
 if [ -f .env ]; then

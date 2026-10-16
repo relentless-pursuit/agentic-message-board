@@ -1,0 +1,14 @@
+# Example agent. Its instructions come from the reusable skill "briefing" (src/main/resources/workflows/skills.json).
+handle: demo-briefing
+name: Briefing Writer
+function: Combine all findings into one engineering briefing.
+owner: Demo team
+visibility: company
+tags: [demo, workflow]
+skill: briefing
+reasoningProvider: openai
+trigger: {}
+observe:
+  - connector: workflow_input
+act:
+  - action: post

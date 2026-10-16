@@ -18,6 +18,8 @@ public class BoardProperties {
 
     /** Folder with one YAML file per agent. */
     private String agentsDir = "agents-local";
+    /** Optional folder with one JSON workflow per file (see examples/workflows). Missing workflows are added at start-up. */
+    private String workflowsDir = "";
     /** Folder for local files such as the initial admin token. */
     private String dataDir = "data";
     /** all = everything in one process; web = UI + API only; worker = scheduler + workers only. */
@@ -38,7 +40,6 @@ public class BoardProperties {
     private final Scheduler scheduler = new Scheduler();
     private final Workers workers = new Workers();
     private final Openai openai = new Openai();
-    private final Codex codex = new Codex();
     private String reasoningProvider = "openai";
     private final Http http = new Http();
     private final Limits limits = new Limits();
@@ -46,6 +47,8 @@ public class BoardProperties {
 
     public String getAgentsDir() { return agentsDir; }
     public void setAgentsDir(String agentsDir) { this.agentsDir = agentsDir; }
+    public String getWorkflowsDir() { return workflowsDir; }
+    public void setWorkflowsDir(String workflowsDir) { this.workflowsDir = workflowsDir; }
     public String getDataDir() { return dataDir; }
     public void setDataDir(String dataDir) { this.dataDir = dataDir; }
     public String getRole() { return role; }
@@ -62,7 +65,6 @@ public class BoardProperties {
     public Scheduler getScheduler() { return scheduler; }
     public Workers getWorkers() { return workers; }
     public Openai getOpenai() { return openai; }
-    public Codex getCodex() { return codex; }
     public String getReasoningProvider() { return reasoningProvider; }
     public void setReasoningProvider(String value) { reasoningProvider = value; }
     public Http getHttp() { return http; }
@@ -105,9 +107,9 @@ public class BoardProperties {
     }
 
     public static class Openai {
-        /** Model used when an agent does not name one. Must be one of {@link #models}. */
+        /** Model used when an agent does not name one (any model id your OpenAI account can use). */
         private String model = "gpt-5.4-nano";
-        /** Models agents may use, with USD prices per million tokens for the budget guard. */
+        /** Known prices in USD per million tokens, for the budget guard. OpenAI's API does not report prices. */
         private List<ModelPrice> models = new ArrayList<>(List.of(
                 new ModelPrice("gpt-5.4-nano", 0.20, 0.02, 1.25),
                 new ModelPrice("gpt-5.4-mini", 0.75, 0.075, 4.50),
@@ -122,9 +124,19 @@ public class BoardProperties {
         public void setModel(String v) { model = v; }
         public List<ModelPrice> getModels() { return models; }
         public void setModels(List<ModelPrice> v) { models = v; }
+        /**
+         * Price used for a model that is not in {@link #models}: deliberately high, so an unknown model can never
+         * make the budget look safer than it is. Set it (board.openai.fallback-price) to the price of your model.
+         */
+        private ModelPrice fallbackPrice = new ModelPrice("*", 5.00, 0.50, 30.00);
+        public ModelPrice getFallbackPrice() { return fallbackPrice; }
+        public void setFallbackPrice(ModelPrice v) { fallbackPrice = v; }
+        /** A listed price for this model: exact id, or the listed id it is a dated snapshot of (gpt-5.4-mini-2026-03-17). */
         public java.util.Optional<ModelPrice> price(String id) {
-            return models.stream().filter(m -> m.getId().equals(id)).findFirst();
+            return models.stream().filter(m -> id.equals(m.getId()) || id.startsWith(m.getId() + "-"))
+                    .max(java.util.Comparator.comparingInt(m -> m.getId().length()));
         }
+        public ModelPrice priceOrFallback(String id) { return price(id).orElse(fallbackPrice); }
         public String getKeyFile() { return keyFile; }
         public void setKeyFile(String v) { keyFile = v; }
         public int getMaxConcurrent() { return maxConcurrent; }
@@ -163,20 +175,6 @@ public class BoardProperties {
         }
     }
 
-    public static class Codex {
-        private String command="codex";
-        private String home=System.getProperty("user.home")+"/.codex";
-        private String runtimeRoot=System.getProperty("user.home")+"/.cache/codex-runtimes/codex-primary-runtime/dependencies";
-        private List<String> skillRoots=new ArrayList<>(List.of(home+"/skills",home+"/plugins/cache"));
-        public String getCommand(){return command;}
-        public void setCommand(String v){command=v;}
-        public String getHome(){return home;}
-        public void setHome(String v){home=v;}
-        public String getRuntimeRoot(){return runtimeRoot;}
-        public void setRuntimeRoot(String v){runtimeRoot=v;}
-        public List<String> getSkillRoots(){return skillRoots;}
-        public void setSkillRoots(List<String> v){skillRoots=v;}
-    }
 
     public static class Http {
         /** Connectors may only call these hosts. */

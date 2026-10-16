@@ -31,11 +31,11 @@ public class WorkflowService {
     }
     private final JdbcTemplate db;private final ObjectMapper json;private final AgentRegistry registry;
     private final RunService queue;private final RunRepository runs;private final PostRepository posts;
-    private final ReadTools readTools;private final AgentReportStore reports;
+    private final ReadTools readTools;private final AgentReportStore reports;private final dev.agentboard.connect.ConnectorRegistry connectors;
     private final OpenAiReasoner model;private final BoardProperties config;private final ModelUsage usage;
-    public WorkflowService(JdbcTemplate db,ObjectMapper json,AgentRegistry registry,RunService queue,RunRepository runs,PostRepository posts,OpenAiReasoner model,BoardProperties config,ModelUsage usage,ReadTools readTools,AgentReportStore reports){
+    public WorkflowService(JdbcTemplate db,ObjectMapper json,AgentRegistry registry,RunService queue,RunRepository runs,PostRepository posts,OpenAiReasoner model,BoardProperties config,ModelUsage usage,ReadTools readTools,AgentReportStore reports,dev.agentboard.connect.ConnectorRegistry connectors){
         this.db=db;this.json=json;this.registry=registry;this.queue=queue;this.runs=runs;this.posts=posts;
-        this.model=model;this.config=config;this.usage=usage;this.readTools=readTools;this.reports=reports;
+        this.model=model;this.config=config;this.usage=usage;this.readTools=readTools;this.reports=reports;this.connectors=connectors;
         // Interrupted executions stay inspectable. Never replay model requests on a server restart.
         for(String id:db.query("SELECT id FROM workflow_executions WHERE status='running'",(rs,n)->rs.getString(1))){
             var state=execution(id);state.put("status","interrupted");state.put("error","The server restarted. Start a new run explicitly; this run was not retried.");
@@ -52,8 +52,8 @@ public class WorkflowService {
     }
     public List<Skill> skills(){return db.query("SELECT detail FROM board_skills ORDER BY id",(rs,n)->json.readValue(rs.getString(1),Skill.class));}
     public Map<String,Object> options(){
-        var models=model.models().stream().map(m->Map.<String,Object>of("id",m.getId(),"inputUsdPerMillion",m.getInput(),"outputUsdPerMillion",m.getOutput())).toList();
-        return Map.of("providers",List.of(Map.of("id","openai","name","OpenAI · "+model.model(),"available",model.configured())),"model",model.model(),"models",models,"configured",model.configured(),"capacity",usage.swarmCapacity(),"tools",ReadTools.NAMES);
+        var models=model.models().stream().map(m->Map.<String,Object>of("id",m.id(),"inputUsdPerMillion",m.inputUsdPerMillion(),"outputUsdPerMillion",m.outputUsdPerMillion(),"priceListed",m.priceListed(),"onAccount",m.onAccount())).toList();
+        return Map.of("providers",List.of(Map.of("id","openai","name","OpenAI · "+model.model(),"available",model.configured())),"model",model.model(),"models",models,"configured",model.configured(),"capacity",usage.capacity(),"tools",ReadTools.NAMES,"toolParameters",ReadTools.parameterSpec());
     }
     public Map<String,Object> preflight(){try{return model.preflight();}catch(Exception e){throw bad(e.getMessage());}}
     private boolean hasSkill(String id){return Boolean.TRUE.equals(db.queryForObject("SELECT COUNT(*)>0 FROM board_skills WHERE id=?",Boolean.class,id));}
@@ -73,7 +73,7 @@ public class WorkflowService {
         if(input==null)throw bad("Agent is required.");text(input.name(),"Name",60);text(input.function(),"Function",200);Skill s=skill(input.skill());
         String handle="agent-"+UUID.randomUUID().toString().substring(0,12);
         String connector=input.connector()==null?"workflow_input":input.connector();
-        if(!List.of("workflow_input","rss","hackernews").contains(connector))throw bad("Choose workflow input, RSS or Hacker News.");
+        if(!workflowConnectors().contains(connector))throw bad("Choose one of the available inputs: "+workflowConnectors()+".");
         String chosen=input.model()==null || input.model().isBlank()?null:input.model().trim();
         if(chosen!=null){try{model.allowed(chosen);}catch(IllegalArgumentException e){throw bad(e.getMessage());}}
         createRegistryAgent(handle,input.name(),input.function(),s,new AgentDefinition.ObserveStep(connector,input.settings()==null?Map.of():input.settings()),chosen);
@@ -82,13 +82,20 @@ public class WorkflowService {
     private void createRegistryAgent(String handle,String name,String function,Skill s,AgentDefinition.ObserveStep observe,String modelId){
         registry.create(new AgentDefinition(handle,name,function,"My team",null,"company",List.of("workflow"),
             new AgentDefinition.Trigger(null,null,null,null,null),List.of(observe),
-            s.instructions(),List.of(new AgentDefinition.ActStep("post",Map.of())),true,null,"openai",modelId));
-        db.update("INSERT INTO board_agent_skills(handle,skill_id) VALUES(?,?)",handle,s.id());
+            s.instructions(),List.of(new AgentDefinition.ActStep("post",Map.of())),true,null,"openai",modelId,s.id()));
     }
+    /** Inputs a workflow agent may read: every connector the board has, except the ones that wait for a board event. */
+    public List<String> workflowConnectors(){return connectors.names().stream().filter(n->!n.equals("event")).toList();}
     public List<Map<String,Object>> agents(){
-        return db.query("SELECT handle,skill_id FROM board_agent_skills",(rs,n)->Map.<String,Object>of("handle",rs.getString(1),"skill",rs.getString(2)))
-            .stream().filter(a->registry.view((String)a.get("handle")).isPresent()).map(a->Map.<String,Object>of("agent",registry.view((String)a.get("handle")).orElseThrow(),"skill",a.get("skill"),
-                "model",model.modelFor(registry.definition((String)a.get("handle")).orElse(null)))).toList();
+        // An agent belongs in workflows when its definition names a skill that exists. The YAML file (or the UI) is the only record.
+        Set<String> known=new HashSet<>();skills().forEach(s->known.add(s.id()));
+        var out=new ArrayList<Map<String,Object>>();
+        for(AgentDefinition d:registry.allDefinitions()){
+            if(d.skill()==null || !known.contains(d.skill()))continue;
+            var view=registry.view(d.handle());if(view.isEmpty())continue;
+            out.add(Map.<String,Object>of("agent",view.get(),"skill",d.skill(),"model",model.modelFor(d)));
+        }
+        return out;
     }
     public synchronized Definition save(Definition d){
         validate(d);String id=d.id()==null || d.id().isBlank()?UUID.randomUUID().toString():d.id();identifier(id);
@@ -109,7 +116,7 @@ public class WorkflowService {
             if(!ids.add(node.id()) || !handles.add(node.agent()))throw bad("Each agent and node must appear once per workflow.");
             if(!Double.isFinite(node.x()) || !Double.isFinite(node.y()) || node.x()<0 || node.x()>1 || node.y()<0 || node.y()>5000)throw bad("Invalid canvas position.");
             var agent=registry.definition(node.agent()).orElseThrow(()->bad("Unknown agent: "+node.agent()));
-            if(!agent.enabled() || agent.observe().size()!=1 || !List.of("workflow_input","rss","hackernews").contains(agent.observe().get(0).connector()))throw bad("Choose an enabled workflow agent with a supported input connector.");
+            if(!agent.enabled() || agent.observe().size()!=1 || !workflowConnectors().contains(agent.observe().get(0).connector()))throw bad("Choose an enabled workflow agent with one supported input connector.");
             skill(node.skill());
         }
         Set<String> links=new HashSet<>();
@@ -137,20 +144,20 @@ public class WorkflowService {
         if(provider!=null && !provider.equals("openai"))throw bad("Only OpenAI is supported for new runs.");
         if(failNode!=null && !failNode.isBlank())throw bad("Synthetic failure injection is unavailable.");
         if(!model.configured())throw bad("OPENAI_API_KEY is required on the server.");
-        var capacity=usage.swarmCapacity();
+        var capacity=usage.capacity();
         if(((Number)capacity.get("remainingAttempts")).intValue()<d.nodes().size() || ((Number)capacity.get("unreservedUsd")).doubleValue()<=0)throw bad("The shared API ledger has insufficient attempts or budget.");
         // Check every model this workflow uses before any agent starts.
         for(String m:d.nodes().stream().map(n->model.modelFor(registry.definition(n.agent()).orElseThrow())).distinct().toList()){
             try{model.preflight(m);}catch(Exception e){throw bad(e.getMessage());}
         }
         Map<String,Object> pinned;
-        try{pinned=readTools.pin(parameters);}catch(Exception e){throw bad("Source parameters: "+e.getMessage());}
+        try{pinned=readTools.pin(parameters,d.nodes().stream().flatMap(n->skill(n.skill()).permittedTools().stream()).toList());}catch(Exception e){throw bad("Source parameters: "+e.getMessage());}
         if(db.queryForObject("SELECT COUNT(*) FROM workflow_executions WHERE status='running'",Integer.class)>0)throw bad("A workflow is running. Wait for it to finish.");
         List<Map<String,Object>> states=new ArrayList<>();
         for(Node n:d.nodes()){
             var s=skill(n.skill());AgentDefinition a=registry.definition(n.agent()).orElseThrow();
             // Pin instructions and identity. Edits to definitions cannot change an in-flight run.
-            var snapshot=new AgentDefinition(a.handle(),a.name(),a.function(),a.owner(),a.contact(),a.visibility(),a.tags(),a.trigger(),a.observe(),s.instructions(),a.act(),a.enabled(),a.inboundSecret(),"openai",model.modelFor(a));
+            var snapshot=new AgentDefinition(a.handle(),a.name(),a.function(),a.owner(),a.contact(),a.visibility(),a.tags(),a.trigger(),a.observe(),s.instructions(),a.act(),a.enabled(),a.inboundSecret(),"openai",model.modelFor(a),s.id());
             var state=new LinkedHashMap<String,Object>();state.put("node",n.id());state.put("agent",n.agent());state.put("name",a.name());state.put("function",a.function());
             state.put("status","waiting");state.put("model",model.modelFor(a));state.put("skill",s);state.put("snapshot",json.writeValueAsString(snapshot));states.add(state);
         }

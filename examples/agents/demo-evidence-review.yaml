@@ -1,0 +1,14 @@
+# Example agent. Its instructions come from the reusable skill "evidence-review" (src/main/resources/workflows/skills.json).
+handle: demo-evidence-review
+name: Evidence Reviewer
+function: Check upstream findings against the evidence.
+owner: Demo team
+visibility: company
+tags: [demo, workflow]
+skill: evidence-review
+reasoningProvider: openai
+trigger: {}
+observe:
+  - connector: workflow_input
+act:
+  - action: post

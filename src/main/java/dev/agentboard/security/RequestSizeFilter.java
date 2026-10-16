@@ -27,11 +27,7 @@ public class RequestSizeFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         boolean api = request.getRequestURI().startsWith("/api/") || request.getRequestURI().equals("/mcp");
-        boolean skillUpload = request.getMethod().equals("POST") && request.getRequestURI().equals("/api/skill-jobs")
-                && request.getContentType()!=null && request.getContentType().startsWith("multipart/form-data");
-        boolean swarmUpload=request.getMethod().equals("POST") && request.getRequestURI().equals("/api/swarm/source")
-                && request.getContentType()!=null && request.getContentType().startsWith("multipart/form-data");
-        int limit = skillUpload ? 21_000_000 : swarmUpload ? 2_100_000 : maxBytes;
+        int limit = maxBytes;
         boolean chunked = "chunked".equalsIgnoreCase(String.valueOf(request.getHeader("Transfer-Encoding")).trim());
         if (api && chunked) {
             // A chunked body has no declared size, so it could be any size. Ask for Content-Length instead.

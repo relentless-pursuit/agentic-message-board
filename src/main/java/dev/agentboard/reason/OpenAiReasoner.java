@@ -42,16 +42,6 @@ public class OpenAiReasoner {
         if(wait>0) Thread.sleep(wait);
         nextRequest=System.currentTimeMillis()+config.getRequestSpacing().toMillis();
     }
-    public Completion structured(long swarmId,String instructions,String input,Map<String,Object> schema,int outputTokens) throws Exception {
-        if(input.length()>30000 || instructions.length()>12000 || outputTokens<1 || outputTokens>2200)
-            throw new IllegalArgumentException("Swarm input or output limit exceeded");
-        return complete(Map.of("model",config.getModel(),"instructions",instructions,"input",input,"store",false,
-                "reasoning",Map.of("effort","none"),"max_output_tokens",outputTokens,
-                "text",Map.of("format",Map.of("type","json_schema","name","swarm_step","strict",true,"schema",schema))),swarmId,true);
-    }
-    private Completion complete(Map<String,Object> payload,long runId,boolean swarm) throws Exception {
-        return decode(requestResponse(payload,runId,swarm),((Number)payload.get("max_output_tokens")).intValue());
-    }
     public Map<String,Object> preflight() throws Exception { return preflight(model()); }
     /** Checks the key and that the account can use this model, without spending tokens. */
     public Map<String,Object> preflight(String modelId) throws Exception {
@@ -62,7 +52,7 @@ public class OpenAiReasoner {
         if(response.statusCode()!=200)throw new IllegalStateException("OpenAI model preflight failed for "+modelId+" (HTTP "+response.statusCode()+"). Check OPENAI_API_KEY and that your account can use this model. No model was substituted.");
         return Map.of("available",true,"model",modelId,"checkedAt",java.time.Instant.now().toString());
     }
-    public tools.jackson.databind.JsonNode requestResponse(Map<String,Object> payload,long runId,boolean swarm) throws Exception {
+    public tools.jackson.databind.JsonNode requestResponse(Map<String,Object> payload,long runId) throws Exception {
         String secret=key();
         if(secret.isBlank())throw new IllegalStateException("OPENAI_API_KEY is missing; set it in the environment or private key file");
         if(!slots.tryAcquire(config.getTimeout().toMillis(),TimeUnit.MILLISECONDS))throw new IllegalStateException("OpenAI slots busy");
@@ -71,7 +61,7 @@ public class OpenAiReasoner {
             pace();byte[] body=json.writeValueAsBytes(payload);
             String modelId=String.valueOf(payload.get("model"));var price=allowed(modelId);
             double estimate=price.cost(body.length*2L+4096,0,((Number)payload.get("max_output_tokens")).intValue());
-            reservation=swarm?usage.reserveSwarm(runId,modelId,estimate):usage.reserve(runId,modelId,estimate);
+            reservation=usage.reserve(runId,modelId,estimate);
             var request=HttpRequest.newBuilder(URI.create("https://api.openai.com/v1/responses"))
                     .timeout(config.getTimeout()).header("Authorization","Bearer "+secret).header("Content-Type","application/json")
                     .POST(HttpRequest.BodyPublishers.ofByteArray(body)).build();
@@ -114,17 +104,47 @@ public class OpenAiReasoner {
     public String model(){return config.getModel();}
     /** The model an agent runs with: its own choice if it made one, otherwise the default. */
     public String modelFor(AgentDefinition agent){return agent==null || agent.model()==null?config.getModel():agent.model();}
-    /** Models agents may choose, with prices. */
-    public List<BoardProperties.ModelPrice> models(){return List.copyOf(config.getModels());}
-    /** Price of a model that agents may use; anything else is refused before a request is sent. */
+    /** A model the user may pick, with the price the budget guard uses and whether that price is listed or only an estimate. */
+    public record ModelChoice(String id,double inputUsdPerMillion,double outputUsdPerMillion,boolean priceListed,boolean onAccount){}
+    private volatile List<String> accountModels=List.of();private volatile long accountModelsAt;
+    /**
+     * The models to offer: the ones this OpenAI account can use when the key works, otherwise the models with a known price.
+     * Prices come from board.openai.models; a model without a listed price is priced at board.openai.fallback-price.
+     */
+    public List<ModelChoice> models(){
+        var ids=new LinkedHashSet<String>();var account=accountModelIds();
+        if(account.isEmpty())config.getModels().forEach(m->ids.add(m.getId()));else{config.getModels().stream().map(BoardProperties.ModelPrice::getId).filter(account::contains).forEach(ids::add);ids.addAll(account);}
+        ids.add(config.getModel());
+        var out=new ArrayList<ModelChoice>();
+        for(String id:ids){var listed=config.price(id);var p=listed.orElse(config.getFallbackPrice());out.add(new ModelChoice(id,p.getInput(),p.getOutput(),listed.isPresent(),account.contains(id)));}
+        out.sort(Comparator.comparing((ModelChoice m)->!m.priceListed()).thenComparing(ModelChoice::id));
+        return out;
+    }
+    /** Chat-capable models on this account (cached for ten minutes). Empty when there is no key or the call fails. */
+    private synchronized Set<String> accountModelIds(){
+        if(!configured())return Set.of();
+        if(System.currentTimeMillis()-accountModelsAt>600_000){
+            try{
+                var request=HttpRequest.newBuilder(URI.create("https://api.openai.com/v1/models")).timeout(config.getTimeout()).header("Authorization","Bearer "+key()).GET().build();
+                var response=client.send(request,HttpResponse.BodyHandlers.ofString());
+                var found=new ArrayList<String>();
+                if(response.statusCode()==200)for(var m:json.readTree(response.body()).path("data")){String id=m.path("id").asText();if(usableForAgents(id))found.add(id);}
+                accountModels=found;
+            }catch(Exception e){accountModels=List.of();}
+            accountModelsAt=System.currentTimeMillis();
+        }
+        return new LinkedHashSet<>(accountModels);
+    }
+    static boolean usableForAgents(String id){
+        return id.matches("(gpt-|o\\d|chatgpt-)[A-Za-z0-9._:-]*") && !id.matches(".*(audio|realtime|transcribe|tts|image|embedding|moderation|search|instruct|whisper|dall|vision|computer-use|codex|deep-research).*");
+    }
+    /** Checks a model id and returns the price used to reserve budget for it. Whether the account can use it is checked by preflight. */
     public BoardProperties.ModelPrice allowed(String modelId){
-        return config.price(modelId).orElseThrow(()->new IllegalArgumentException("Model "+modelId+" is not allowed. Allowed models: "+config.getModels().stream().map(BoardProperties.ModelPrice::getId).toList()+" (board.openai.models)."));
+        if(modelId==null || !modelId.matches("[A-Za-z0-9._:-]{1,80}"))throw new IllegalArgumentException("Choose an OpenAI model id such as gpt-5.4-mini.");
+        return config.priceOrFallback(modelId);
     }
     /** Price for a model name in a response, which may carry a date suffix such as gpt-5.4-mini-2026-03-17. */
-    public BoardProperties.ModelPrice priceFor(String responseModel){
-        return config.getModels().stream().filter(m->responseModel.equals(m.getId()) || responseModel.startsWith(m.getId()+"-"))
-                .max(Comparator.comparingInt(m->m.getId().length())).orElseGet(()->allowed(config.getModel()));
-    }
+    public BoardProperties.ModelPrice priceFor(String responseModel){return config.priceOrFallback(responseModel);}
     public record Completion(tools.jackson.databind.JsonNode answer,Map<String,Object> usage){}
     private static String cut(String s,int n) { return s==null?"":s.substring(0,Math.min(s.length(),n)); }
 }

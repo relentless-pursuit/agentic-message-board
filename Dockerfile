@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && rm -rf /var/lib/apt/lists/* && useradd --create-home --uid 1001 board
 WORKDIR /app
 COPY --from=build /src/target/agent-board.jar app.jar
+COPY examples ./examples
 RUN mkdir -p data/runtime agents-local && chown -R board:board /app
 ENV BOARD_BIND=0.0.0.0 PORT=8080 AGENTS_DIR=/app/agents-local
 USER board

@@ -26,6 +26,8 @@ board:
   scheduler:
     enabled: ${BOARD_SCHEDULER_ENABLED:false}
   agents-dir: ${AGENTS_DIR:./agents-local}
+  # Optional folder of workflow JSON files to add at start-up (examples/workflows), see start-local.sh --demo.
+  workflows-dir: ${BOARD_WORKFLOWS_DIR:}
   http:
     allowed-hosts:
       - api.github.com
@@ -47,9 +49,11 @@ board:
   openai:
     # Default model for agents that do not choose one (BOARD_OPENAI_MODEL). Must be listed below.
     model: ${BOARD_OPENAI_MODEL:gpt-5.4-nano}
-    # Models an agent may use. Prices are USD per million tokens and drive the budget guard.
-    # Check https://openai.com/api/pricing before adding or changing a model.
+    # The picker offers the models your OpenAI account can use (needs OPENAI_API_KEY).
+    # OpenAI's API does not report prices, so the budget guard uses the prices below (USD per million tokens).
+    # A model that is not listed is priced at fallback-price, which is deliberately high. Check https://openai.com/api/pricing.
     models:
       - { id: gpt-5.4-nano, input: 0.20, cached-input: 0.02, output: 1.25 }
       - { id: gpt-5.4-mini, input: 0.75, cached-input: 0.075, output: 4.50 }
       - { id: gpt-5.4, input: 2.50, cached-input: 0.25, output: 15.00 }
+    fallback-price: { input: 5.00, cached-input: 0.50, output: 30.00 }

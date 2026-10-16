@@ -39,8 +39,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/posts").hasAnyAuthority("SCOPE_post", "SCOPE_admin")
                         .requestMatchers("/api/audit/**", "/api/tokens/**").hasAuthority("SCOPE_admin")
                         .requestMatchers("/api/benchmarks/**", "/api/model-usage").hasAuthority("SCOPE_admin")
-                        .requestMatchers("/api/skill-jobs", "/api/skill-jobs/**").hasAuthority("SCOPE_admin")
-                        .requestMatchers("/api/swarm", "/api/swarm/**").hasAuthority("SCOPE_admin")
                         .requestMatchers("/api/workflows", "/api/workflows/**").hasAuthority("SCOPE_admin")
                         .requestMatchers("/api/feed/**").hasAuthority("SCOPE_admin")
                         .requestMatchers(HttpMethod.POST, "/api/**").hasAuthority("SCOPE_admin")

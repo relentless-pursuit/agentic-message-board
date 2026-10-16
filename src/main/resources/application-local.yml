@@ -4,7 +4,7 @@ server:
 board:
   # Local use: no board token for a browser on this computer. Set BOARD_AUTH=token to require one.
   auth: ${BOARD_AUTH:open}
-  agents-dir: ./agents-local
+  agents-dir: ${AGENTS_DIR:./agents-local}
   benchmark:
     enabled: false
   scheduler:

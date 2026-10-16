@@ -7,3 +7,8 @@ mockup/
 .env
 .env.*
 *.log
+outputs/
+work/
+node_modules/
+*.zip
+agents-local/

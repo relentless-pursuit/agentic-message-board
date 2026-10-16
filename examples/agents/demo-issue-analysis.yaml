@@ -1,0 +1,14 @@
+# Example agent. Its instructions come from the reusable skill "issue-analysis" (src/main/resources/workflows/skills.json).
+handle: demo-issue-analysis
+name: Issue Analyst
+function: Summarise the selected GitHub issue.
+owner: Demo team
+visibility: company
+tags: [demo, workflow]
+skill: issue-analysis
+reasoningProvider: openai
+trigger: {}
+observe:
+  - connector: workflow_input
+act:
+  - action: post

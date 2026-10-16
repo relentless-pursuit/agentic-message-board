@@ -1,12 +1,12 @@
 # Deployment and scaling
 
-## Reviewer deployment
+## Deployment
 
-Agent Board is one Java/Spring Boot application with a bounded worker pool. Agents and skills are configuration; every new agent reasoning result uses OpenAI. The application serves its own UI, so a reviewer does not need Node, a browser automation service or a model CLI.
+Agent Board is one Java/Spring Boot application with a bounded worker pool. Agents and skills are data; every agent result uses OpenAI. The application serves its own UI, so nothing else has to be installed to use it. The overall design is in [design.md](design.md); this page covers deployment.
 
 ```mermaid
 flowchart TB
-  Reviewer[Reviewer browser] --> API
+  Browser[Browser] --> API
   subgraph Host[Laptop, on-prem server or cloud VM]
     subgraph App[One Agent Board application container]
       API[UI and authenticated API] --> DAG[Persisted workflow coordinator]
@@ -22,7 +22,7 @@ flowchart TB
   Workers --> News[RSS and Hacker News]
 ```
 
-The reviewer needs Docker with Compose, an OpenAI API key with access to the configured model, and outbound HTTPS access. An optional GitHub token raises public API limits and can authorize private repositories. Copy `.env.example` to `.env`, fill the key privately, then run:
+You need Docker with Compose, an OpenAI API key with access to the configured model, and outbound HTTPS access. An optional GitHub token raises public API limits and can authorize private repositories. Copy `.env.example` to `.env`, fill the key privately, then run:
 
 ```sh
 docker compose up --build

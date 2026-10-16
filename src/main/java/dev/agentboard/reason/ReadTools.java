@@ -15,16 +15,51 @@ public class ReadTools {
     public static final Set<String> NAMES=Set.of("read_issue","list_files","read_file","read_releases","read_rss","read_hackernews");
     private final SafeHttp http;private final SecretResolver secrets;private final ConnectorRegistry connectors;
     public ReadTools(SafeHttp http,SecretResolver secrets,ConnectorRegistry connectors){this.http=http;this.secrets=secrets;this.connectors=connectors;}
-    public Map<String,Object> pin(Map<String,Object> raw)throws Exception{
-        var p=new LinkedHashMap<String,Object>();if(raw!=null)p.putAll(raw);if(!Set.of("repository","issue","revision","rssUrl","hnTop").containsAll(p.keySet()))throw new IllegalArgumentException("Unknown source parameter.");
-        String repo=Objects.toString(p.getOrDefault("repository","psf/requests"));
-        if(!repo.matches("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"))throw new IllegalArgumentException("Repository must be owner/name.");
-        if(Arrays.stream(repo.split("/")).anyMatch(part->part.equals(".")||part.equals("..")))throw new IllegalArgumentException("Invalid repository name.");p.put("repository",repo);int issue=number(p.getOrDefault("issue",7634));if(issue<1)throw new IllegalArgumentException("Issue must be positive.");p.put("issue",issue);
-        String rev=Objects.toString(p.getOrDefault("revision","611c6162cbc4ac2020a2f91c7cfa4f3abf9bbb60"));
-        if(rev.isBlank()||rev.length()>200)throw new IllegalArgumentException("Provide a revision or commit.");
-        if(!rev.matches("[a-fA-F0-9]{40}"))rev=Objects.toString(asMap(http.getJson(base(repo)+"/commits/"+enc(rev),headers())).get("sha"),"");
-        if(!rev.matches("[a-fA-F0-9]{40}"))throw new IllegalArgumentException("GitHub did not resolve the revision to a commit.");
-        p.put("revision",rev.toLowerCase(Locale.ROOT));p.putIfAbsent("rssUrl","https://github.blog/changelog/feed/");p.putIfAbsent("hnTop",3);int top=number(p.get("hnTop"));if(top<1||top>10)throw new IllegalArgumentException("Hacker News count must be 1–10.");http.validateAddress(Objects.toString(p.get("rssUrl")));return p;
+    /** What a person must enter before a run so each read tool has its source: tool name to parameter keys. */
+    private static final Map<String,List<String>> TOOL_PARAMETERS=Map.of("read_issue",List.of("repository","issue"),"list_files",List.of("repository","revision"),
+        "read_file",List.of("repository","revision"),"read_releases",List.of("repository"),"read_rss",List.of("rssUrl"),"read_hackernews",List.of("hnTop"));
+    private static final List<Map<String,Object>> PARAMETER_FIELDS=List.of(
+        Map.of("key","repository","label","GitHub repository","type","text","placeholder","owner/repository"),
+        Map.of("key","issue","label","Issue number","type","number","min",1,"placeholder","for example 123"),
+        Map.of("key","revision","label","Branch, tag or commit","type","text","placeholder","main"),
+        Map.of("key","rssUrl","label","RSS or Atom feed address","type","url","placeholder","https://example.com/feed.xml"),
+        Map.of("key","hnTop","label","Hacker News stories (1-10)","type","number","min",1,"max",10,"placeholder","3"));
+    /** Published to the page so it can ask for exactly the parameters the chosen tools need. */
+    public static Map<String,Object> parameterSpec(){return Map.of("fields",PARAMETER_FIELDS,"tools",TOOL_PARAMETERS);}
+    private static final Set<String> GITHUB_TOOLS=Set.of("read_issue","list_files","read_file","read_releases");
+    /** Checks and pins the run parameters. Only what the chosen tools need is required, and nothing has a built-in default. */
+    public Map<String,Object> pin(Map<String,Object> raw,Collection<String> tools)throws Exception{
+        var p=new LinkedHashMap<String,Object>();
+        if(raw!=null)raw.forEach((k,v)->{if(v!=null&&!(v instanceof String text&&text.isBlank()))p.put(k,v);});
+        if(!Set.of("repository","issue","revision","rssUrl","hnTop").containsAll(p.keySet()))throw new IllegalArgumentException("Unknown source parameter.");
+        if(tools.stream().anyMatch(GITHUB_TOOLS::contains)){
+            String repo=Objects.toString(p.get("repository"),"");
+            if(repo.isBlank())throw new IllegalArgumentException("Enter the repository (owner/name).");
+            if(!repo.matches("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"))throw new IllegalArgumentException("Repository must be owner/name.");
+            if(Arrays.stream(repo.split("/")).anyMatch(part->part.equals(".")||part.equals("..")))throw new IllegalArgumentException("Invalid repository name.");
+            p.put("repository",repo);
+            if(tools.contains("read_issue")){
+                if(p.get("issue")==null)throw new IllegalArgumentException("Enter the issue number.");
+                int issue=number(p.get("issue"));if(issue<1)throw new IllegalArgumentException("Issue must be positive.");p.put("issue",issue);
+            }
+            if(tools.contains("list_files")||tools.contains("read_file")){
+                String rev=Objects.toString(p.get("revision"),"");
+                if(rev.isBlank()||rev.length()>200)throw new IllegalArgumentException("Enter a branch, tag or commit.");
+                if(!rev.matches("[a-fA-F0-9]{40}"))rev=Objects.toString(asMap(http.getJson(base(repo)+"/commits/"+enc(rev),headers())).get("sha"),"");
+                if(!rev.matches("[a-fA-F0-9]{40}"))throw new IllegalArgumentException("GitHub did not resolve the revision to a commit.");
+                p.put("revision",rev.toLowerCase(Locale.ROOT));
+            }
+        }
+        if(tools.contains("read_rss")){
+            String url=Objects.toString(p.get("rssUrl"),"");
+            if(url.isBlank())throw new IllegalArgumentException("Enter the RSS or Atom feed address.");
+            http.validateAddress(url);
+        }
+        if(tools.contains("read_hackernews")){
+            if(p.get("hnTop")==null)throw new IllegalArgumentException("Enter how many Hacker News stories to read.");
+            int top=number(p.get("hnTop"));if(top<1||top>10)throw new IllegalArgumentException("Hacker News count must be 1–10.");p.put("hnTop",top);
+        }
+        return p;
     }
     private Map<String,String> headers(){var h=new HashMap<String,String>();h.put("Accept","application/vnd.github+json");secrets.resolve("GITHUB_TOKEN").ifPresent(t->h.put("Authorization","Bearer "+t));return h;}
     private static String base(String repo){return "https://api.github.com/repos/"+repo;}
@@ -60,7 +95,7 @@ public class ReadTools {
                     String[] lines=text.split("\\R",-1);first=number(args.get("startLine"));int requestedEnd=number(args.get("endLine"));if(first<1||first>lines.length||requestedEnd<first)throw new IllegalArgumentException("Invalid source line range.");last=Math.min(Math.min(requestedEnd,first+199),lines.length);var numbered=new StringBuilder();int actual=first-1;for(int i=first;i<=last;i++){String line=i+": "+lines[i-1]+"\n";if(numbered.length()+line.length()>12000)break;numbered.append(line);actual=i;}last=actual;if(last<first)throw new IllegalArgumentException("Source line exceeds the excerpt limit.");
                     result.put("text",numbered.toString());result.put("omitted",last<requestedEnd);url="https://github.com/"+repo+"/blob/"+sha+"/"+path+"#L"+first+"-L"+last;}
                 case "read_releases"->{Object data=http.getJson(base(repo)+"/releases?per_page=3",headers());result.put("releases",data instanceof List<?> list?list.stream().limit(3).map(o->{var m=asMap(o);return Map.of("tag",Objects.toString(m.get("tag_name"),""),"body",clip(Objects.toString(m.get("body"),""),2500),"url",Objects.toString(m.get("html_url"),""));}).toList():List.of());url="https://github.com/"+repo+"/releases";}
-                default->{String connector=name.equals("read_rss")?"rss":"hackernews";Map<String,Object> settings=connector.equals("rss")?Map.of("feeds",List.of(Objects.toString(params.getOrDefault("rssUrl","https://github.blog/changelog/feed/"))),"hours",168):Map.of("top",Math.min(10,Math.max(1,number(params.getOrDefault("hnTop",3)))));var obs=connectors.get(connector).orElseThrow().fetch(settings,ctx);result.put("summary",obs.summary());result.put("facts",obs.facts().stream().limit(10).toList());result.put("omitted",Math.max(0,obs.facts().size()-10));url=connector.equals("rss")?Objects.toString(params.getOrDefault("rssUrl","https://github.blog/changelog/feed/")):"https://news.ycombinator.com/";}
+                default->{String connector=name.equals("read_rss")?"rss":"hackernews";Map<String,Object> settings=connector.equals("rss")?Map.of("feeds",List.of(Objects.toString(params.get("rssUrl"),"")),"hours",168):Map.of("top",Math.min(10,Math.max(1,number(params.get("hnTop")))));var obs=connectors.get(connector).orElseThrow().fetch(settings,ctx);result.put("summary",obs.summary());result.put("facts",obs.facts().stream().limit(10).toList());result.put("omitted",Math.max(0,obs.facts().size()-10));url=connector.equals("rss")?Objects.toString(params.get("rssUrl"),""):"https://news.ycombinator.com/";}
             }
             String id="run"+ctx.runId()+"-e"+(++sequence);var doc=new LinkedHashMap<String,Object>();doc.put("id",id);doc.put("tool",name);doc.put("url",url);doc.put("path",path);doc.put("startLine",first);doc.put("endLine",last);doc.put("revision",sha);doc.put("content",result);evidence.add(doc);return doc;
         }

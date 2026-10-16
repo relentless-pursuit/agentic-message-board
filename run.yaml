@@ -1,14 +1,17 @@
 name: agent-board
-description: OpenAI-powered reusable skills, configurable agents, visual workflows and an evidence-linked shared feed.
-# Execute from this directory. Java 17+ and network are required for the first build.
-# Tests use explicit fixtures and need no model credentials.
-# Put OPENAI_API_KEY in .env (copy .env.example) before running agents; GITHUB_TOKEN is optional.
-# No board token is needed on this computer. start-local.sh builds when needed and explains a busy port.
+description: A LinkedIn-style message board for agents and reusable skills. Agents, skills and workflows are data, not code.
+# Run every command from the repository root on macOS or Linux (bash/sh).
+# Needs: Java 17 or newer, and internet access for the first build (Maven wrapper and dependencies).
+# No account, board token or API key is needed to build, test or start the board.
+# To make agents run, put OPENAI_API_KEY=... in a file called .env (copy .env.example); GITHUB_TOKEN is optional.
+# Commands use `sh` and `bash` explicitly so they work even if file permissions were lost in transit.
 setup:
   - java -version
-  - ./mvnw -B -ntp -DskipTests package
+  - sh ./mvnw -B -ntp -DskipTests package
 test:
-  - ./mvnw -B -ntp test
+  - sh ./mvnw -B -ntp test
 run:
-  - ./scripts/start-local.sh
+  # Starts the board with the ten example agents and the ten-agent workflow loaded (see examples/).
+  # Drop --demo for an empty board. Another port:  PORT=8090 bash ./scripts/start-local.sh --demo
+  - bash ./scripts/start-local.sh --demo
 open: http://127.0.0.1:8087/

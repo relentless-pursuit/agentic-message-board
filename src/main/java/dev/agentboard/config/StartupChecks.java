@@ -30,16 +30,17 @@ public class StartupChecks implements InitializingBean {
             throw new IllegalStateException("board.auth must be token or open (was '" + props.getAuth() + "'). Set BOARD_AUTH.");
         }
         var ai0 = props.getOpenai();
-        if (ai0.getModels() == null || ai0.getModels().isEmpty()) {
-            throw new IllegalStateException("board.openai.models must list at least one model with its prices.");
-        }
         for (var m : ai0.getModels()) {
             if (m.getId() == null || !m.getId().matches("[A-Za-z0-9._:-]{1,80}") || m.getInput() <= 0 || m.getOutput() <= 0 || m.getCachedInput() < 0) {
                 throw new IllegalStateException("Each board.openai.models entry needs an id and positive input/output prices per million tokens.");
             }
         }
-        if (ai0.price(ai0.getModel()).isEmpty()) {
-            throw new IllegalStateException("BOARD_OPENAI_MODEL=" + ai0.getModel() + " is not in board.openai.models " + ai0.getModels().stream().map(BoardProperties.ModelPrice::getId).toList() + ". Add it there with its prices.");
+        if (!ai0.getModel().matches("[A-Za-z0-9._:-]{1,80}")) {
+            throw new IllegalStateException("BOARD_OPENAI_MODEL must be an OpenAI model id such as gpt-5.4-nano (was '" + ai0.getModel() + "').");
+        }
+        var fb = ai0.getFallbackPrice();
+        if (fb.getInput() <= 0 || fb.getOutput() <= 0 || fb.getCachedInput() < 0) {
+            throw new IllegalStateException("board.openai.fallback-price needs positive input and output prices per million tokens.");
         }
         props.zone();
         if(!"openai".equals(props.getReasoningProvider())) throw new IllegalStateException("board.reasoning-provider must be openai");

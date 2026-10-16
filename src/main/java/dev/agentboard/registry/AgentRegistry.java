@@ -31,6 +31,7 @@ import java.time.Instant;
  * the database, so the database is the one place every other part reads from.
  */
 @Service
+@org.springframework.core.annotation.Order(10)
 public class AgentRegistry implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(AgentRegistry.class);
@@ -106,6 +107,8 @@ public class AgentRegistry implements ApplicationRunner {
 
     public AgentDefinition parse(String definitionJson) { return json.readValue(definitionJson, AgentDefinition.class); }
     public Optional<AgentDefinition> definition(String handle) { return repository.findDefinitionJson(handle).map(this::parse); }
+    /** Definitions of all active agents, whether they came from a YAML file or from the UI. */
+    public List<AgentDefinition> allDefinitions() { return repository.findAllDefinitionJson().stream().map(this::parse).toList(); }
     public Optional<AgentView> view(String handle) { return repository.findView(handle); }
 
     public synchronized AgentView register(AgentDefinition raw) {

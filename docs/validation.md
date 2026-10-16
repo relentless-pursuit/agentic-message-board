@@ -1,37 +1,25 @@
-# Validation record — 16 October 2026
+# What has been verified
 
-## Automated checks
+Being exact about this matters more than a long list.
 
-A clean Java build and subsequent focused regressions passed **101 tests**, with **0 failures, 0 errors and 0 skips**. These tests use explicit model/source fixtures and incur no API usage. They cover authentication, graph validation and joins, model-only execution, removed providers, missing credentials, output parsing/phases, malformed results, context limits, source boundaries, citation validation, tool/request caps, budget accounting, résumé approval and historical provider migration.
+## Checked automatically
 
-Browser checks passed reusable-skill creation/editing, manual agent creation, canvas connections/handoff inspection, the OpenAI-only run dialog, no synthetic input defaults, a 390px layout and absence of JavaScript errors. Evidence: `reports/openai-automated-validation.json`, `reports/openai-ui-summary.json`.
+* **Browser checks** (`scripts/check.sh`, 24 steps): the board opens with no token; other web sites and other hosts cannot use open access; feed search and clearing; the skill dropdown lists every skill the server has; input sources come from the server; agents are created from three different skills with three different models; the Connect button connects, refuses loops and disconnects; the workflow saves itself and survives a reload; the run dialog is built from the chosen tools with nothing pre-filled; the pages fit a phone screen; no browser error. `--token` repeats this with `BOARD_AUTH=token`, `--demo` checks the example team (10 agents, 10 connections).
+* **Java tests** (`sh ./mvnw test`): agent and workflow logic, the model runtime with a fixture in place of OpenAI, the budget guard, model pricing, run parameters, the open-access check, connectors and the registry. They need no API key.
 
-## Live OpenAI acceptance
+No browser check makes a model request.
 
-All requested examples completed against real OpenAI and public sources:
+## Not verified
 
-| Workflow | Agents | Model requests in successful run | Result |
-|---|---:|---:|---|
-| GitHub impact report | 4 | 8 | Completed; joins verified |
-| Technology digest | 3 | 5 | Completed; joins verified |
-| Ten-agent engineering briefing | 10 | 19 | Completed; joins verified |
+* **The full Java test run on the latest change.** It could not run in the environment where the latest change was made (Maven was unreachable). Run `scripts/check.sh --full` once and read the result.
+* **A live OpenAI run of the latest build.** An earlier build ran a ten-agent workflow against the live API; the current one has not.
+* **PostgreSQL, Docker images and multiple instances.** The recipes are written, not run. Only one application instance is supported.
+* **Load.** There is no measurement beyond ten agents.
 
-The news sources and independent branches of the ten-agent graph overlapped. Every successful agent has recorded response IDs, source evidence and a detailed report. The GitHub analysis inspected pinned `src/requests/models.py`, described the reported multipart field-name failure and proposed `.prepare()` regression tests. It did not edit code or run repository tests. The ten-agent evidence reviewer and editor retained uncertainty about dependency internals and excerpted context.
+## Re-running
 
-Live acceptance used **$0.071823 estimated API usage** and **$0.844893 additional conservative reservations**, below the authorized $1 reservation allowance. These figures include failed acceptance attempts. Failures exposed output limits, intermediate/final message parsing, invalid citations and an oversized join; they remained recorded rather than being replaced with simulated success. The final implementation constrains report size, selects final structured messages, restricts generated evidence IDs/ranges and records explicit larger-join excerpts.
-
-Evidence: `reports/openai-live-summary.json` and the detailed `reports/openai-live-validation.json`. No real user résumé, email inbox or authenticated Jack & Jill account was used.
-
-## Migration and persistence
-
-The application was restarted repeatedly against persistent H2 during acceptance. An offline comparison verified **63 original rows** across runs, posts, usage, workflow executions and saved definitions. Original rows were unchanged; the existing usage ledger was extended with all live requests. The administration token was retained.
-
-The delivery installs **reusable skills only**. All 22 disposable verification actors were retired, their bindings removed, 9 test workflow definitions removed, and their posts archived. Detailed reports and historical execution evidence remain. The original four saved workflows and original visible activity were retained. Evidence: `reports/openai-migration-validation.json`.
-
-Existing agent files normalize legacy providers to OpenAI for future execution without replay. New API definitions reject removed provider selections. The budget ledger is cumulative: existing attempts and reservations consume the current allowance. To authorize more future work, explicitly adjust `BOARD_OPENAI_BUDGET_USD` and `BOARD_OPENAI_MAX_CALLS` and restart; clearing the feed does not reset billing records.
-
-## Deployment verification and limits
-
-Both Compose recipes pass `docker compose config --quiet`. The installed Docker engine did not respond within the bounded check. A native PostgreSQL 14 initialization attempt also failed because its ICU 74 shared library is missing. Consequently **container startup, container health/persistence and PostgreSQL runtime remain unverified** in this environment. No Docker images, databases or hosted infrastructure are claimed to have run successfully.
-
-The Java/H2 application build, startup and persisted state are verified. PostgreSQL configuration uses the application's actual datasource names, one coordinator, the database queue, health-ordered startup and explicit generated-key columns. Multiple application instances remain unsupported pending the changes described in `docs/scale.md`.
+```sh
+sh ./mvnw -B -ntp test          # Java tests
+scripts/check.sh --full         # Java tests, then the browser checks
+scripts/check.sh --demo         # the example team
+```

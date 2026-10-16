@@ -66,6 +66,11 @@ public class AgentRepository {
                 (rs, n) -> rs.getString("definition"), handle).stream().findFirst();
     }
 
+    /** Every active agent's definition JSON, for views that need to look at each agent's skill. */
+    public List<String> findAllDefinitionJson() {
+        return jdbc.query("SELECT definition FROM agents WHERE active = TRUE ORDER BY name, handle", (rs, n) -> rs.getString("definition"));
+    }
+
     public List<OwnerCount> owners() {
         return jdbc.query("SELECT owner, COUNT(*) AS agents FROM agents WHERE active = TRUE GROUP BY owner ORDER BY owner",
                 (rs, n) -> new OwnerCount(rs.getString("owner"), rs.getLong("agents")));
