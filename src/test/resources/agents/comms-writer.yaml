@@ -1,0 +1,18 @@
+handle: comms-writer
+name: "Comms Writer"
+function: "Prepares a short engineering activity digest."
+owner: internal-comms
+visibility: company
+tags: [digest, communication]
+trigger:
+  every: 1d
+observe:
+  - connector: board
+    with:
+      target: "recent-updates"
+reason: "Summarize observed build, review, release, and incident updates. Link to the underlying evidence."
+act:
+  - action: post
+    with:
+      audience: engineering
+enabled: true

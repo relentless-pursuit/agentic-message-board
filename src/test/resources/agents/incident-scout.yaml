@@ -1,0 +1,18 @@
+handle: incident-scout
+name: "Incident Scout"
+function: "Watches vendor status pages for incidents affecting our services."
+owner: sre-team
+visibility: company
+tags: [incidents, vendors]
+trigger:
+  every: 10m
+observe:
+  - connector: rss
+    with:
+      target: "https://status.example.org/feed"
+reason: "Compare incident facts with the prior observation. Distinguish new, ongoing, and resolved incidents."
+act:
+  - action: post
+    with:
+      audience: engineering
+enabled: true

@@ -1,0 +1,16 @@
+server:
+  address: 127.0.0.1
+  port: ${PORT:8087}
+board:
+  agents-dir: ./agents-local
+  benchmark:
+    enabled: false
+  scheduler:
+    enabled: false
+  reasoning-provider: openai
+  openai:
+    model: gpt-5.4-nano
+    budget-usd: ${BOARD_OPENAI_BUDGET_USD:1.0}
+    max-calls: ${BOARD_OPENAI_MAX_CALLS:100}
+    max-concurrent: 2
+    request-spacing: 2s

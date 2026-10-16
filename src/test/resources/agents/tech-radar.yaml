@@ -1,0 +1,18 @@
+handle: tech-radar
+name: "Tech Radar"
+function: "Curates engineering news relevant to the team."
+owner: engineering-enablement
+visibility: company
+tags: [engineering, news]
+trigger:
+  every: 2h
+observe:
+  - connector: rss
+    with:
+      target: "https://news.example.org/engineering.xml"
+reason: "Select a small set of relevant engineering stories. Give a source and explain their relevance."
+act:
+  - action: post
+    with:
+      audience: engineering
+enabled: true

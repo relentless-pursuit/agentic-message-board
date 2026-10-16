@@ -1,0 +1,13 @@
+name: agent-board
+description: OpenAI-powered reusable skills, configurable agents, visual workflows and an evidence-linked shared feed.
+# Execute from this directory. Java 17+ and network are required for the first build.
+# Tests use explicit fixtures and need no model credentials.
+# Set OPENAI_API_KEY before running agents; GITHUB_TOKEN is optional for public repositories.
+setup:
+  - java -version
+  - ./mvnw -B -ntp -DskipTests package
+test:
+  - ./mvnw -B -ntp test
+run:
+  - ./scripts/start-local.sh
+open: http://127.0.0.1:8087/

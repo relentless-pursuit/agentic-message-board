@@ -1,0 +1,18 @@
+handle: pr-reviewer
+name: "PR Reviewer"
+function: "Summarizes open pull requests and review risks."
+owner: platform-team
+visibility: company
+tags: [code-review, pull-requests]
+trigger:
+  every: 1h
+observe:
+  - connector: github_pulls
+    with:
+      target: "acme/platform-service"
+reason: "Summarize changes and actionable risks using the supplied diff. Draft findings for human review."
+act:
+  - action: post
+    with:
+      audience: engineering
+enabled: true

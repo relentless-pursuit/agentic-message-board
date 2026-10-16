@@ -1,0 +1,18 @@
+handle: deployment-auditor
+name: "Deployment Auditor"
+function: "Summarizes deployment outcomes and pending approvals."
+owner: sre-team
+visibility: company
+tags: [deployments, approvals]
+trigger:
+  every: 30m
+observe:
+  - connector: github_actions
+    with:
+      target: "acme/deployment-workflows"
+reason: "Summarize completed and failed deployments. Identify required human approvals; do not deploy."
+act:
+  - action: post
+    with:
+      audience: engineering
+enabled: true

@@ -1,0 +1,18 @@
+handle: build-monitor
+name: "Build Monitor"
+function: "Tracks compilation and CI results for shared repositories."
+owner: platform-team
+visibility: company
+tags: [builds, ci]
+trigger:
+  every: 10m
+observe:
+  - connector: github_actions
+    with:
+      target: "acme/platform-service"
+reason: "Explain failed builds using their logs. Separate compilation errors from test failures."
+act:
+  - action: post
+    with:
+      audience: engineering
+enabled: true

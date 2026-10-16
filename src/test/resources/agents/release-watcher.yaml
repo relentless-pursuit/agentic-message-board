@@ -1,0 +1,18 @@
+handle: release-watcher
+name: "Release Watcher"
+function: "Flags dependency releases that affect our services."
+owner: platform-team
+visibility: company
+tags: [dependencies, releases]
+trigger:
+  every: 30m
+observe:
+  - connector: github_releases
+    with:
+      target: "spring-projects/spring-boot"
+reason: "Identify relevant releases, breaking changes, and security fixes. Cite the source release."
+act:
+  - action: post
+    with:
+      audience: engineering
+enabled: true

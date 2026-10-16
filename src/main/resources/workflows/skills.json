@@ -1,0 +1,90 @@
+{
+  "skills": [
+    {
+      "id": "issue-analysis",
+      "name": "Issue analysis",
+      "instructions": "Summarize expected and actual behavior, reproduction steps and acceptance criteria from the selected GitHub issue.",
+      "permittedTools": [
+        "read_issue"
+      ],
+      "outputContract": "A concise summary, typed observed/hypothesis/proposal findings, valid source citations and explicit uncertainties."
+    },
+    {
+      "id": "repository-navigation",
+      "name": "Repository navigation",
+      "instructions": "Read the selected issue, locate relevant modules in the pinned tree and inspect source before explaining responsibilities. Start with source paths mentioned by the issue or upstream report.",
+      "permittedTools": [
+        "read_issue",
+        "list_files",
+        "read_file"
+      ],
+      "outputContract": "A concise summary, typed observed/hypothesis/proposal findings, valid source citations and explicit uncertainties."
+    },
+    {
+      "id": "change-impact",
+      "name": "Change impact analysis",
+      "instructions": "Inspect source related to the issue. Explain directly affected files, plausible downstream effects and proposed changes. Source claims need inspected file evidence; mark unverified dependency effects as hypotheses.",
+      "permittedTools": [
+        "read_issue",
+        "list_files",
+        "read_file"
+      ],
+      "outputContract": "A concise summary, typed observed/hypothesis/proposal findings, valid source citations and explicit uncertainties."
+    },
+    {
+      "id": "test-planning",
+      "name": "Regression test planning",
+      "instructions": "Use upstream issue and source-impact findings to propose concrete regression tests, edge cases and expected outcomes. Do not claim tests were run.",
+      "permittedTools": [],
+      "outputContract": "A concise summary, typed observed/hypothesis/proposal findings, valid source citations and explicit uncertainties."
+    },
+    {
+      "id": "risk-review",
+      "name": "Compatibility and risk review",
+      "instructions": "Review upstream findings for compatibility risks, uncertainty, incomplete coverage and unsupported assumptions.",
+      "permittedTools": [],
+      "outputContract": "A concise summary, typed observed/hypothesis/proposal findings, valid source citations and explicit uncertainties."
+    },
+    {
+      "id": "release-reporting",
+      "name": "Repository release briefing",
+      "instructions": "Summarize recent repository releases and flag relevant compatibility changes. State when the source does not establish relevance to the issue.",
+      "permittedTools": [
+        "read_releases"
+      ],
+      "outputContract": "A concise summary, typed observed/hypothesis/proposal findings, valid source citations and explicit uncertainties."
+    },
+    {
+      "id": "rss-analysis",
+      "name": "RSS analysis",
+      "instructions": "Summarize recent feed items, identify themes and preserve source links. Distinguish facts from inferred relevance.",
+      "permittedTools": [
+        "read_rss"
+      ],
+      "outputContract": "A concise summary, typed observed/hypothesis/proposal findings, valid source citations and explicit uncertainties."
+    },
+    {
+      "id": "hackernews-analysis",
+      "name": "Hacker News analysis",
+      "instructions": "Summarize the retrieved stories and discussion metadata. Explain potential engineering relevance as inference, preserving links and uncertainty.",
+      "permittedTools": [
+        "read_hackernews"
+      ],
+      "outputContract": "A concise summary, typed observed/hypothesis/proposal findings, valid source citations and explicit uncertainties."
+    },
+    {
+      "id": "evidence-review",
+      "name": "Evidence review",
+      "instructions": "Audit upstream findings against retrieved evidence. Identify unsupported claims, incomplete retrieval and uncertain file impact. Cite inherited evidence; do not invent facts.",
+      "permittedTools": [],
+      "outputContract": "A concise summary, typed observed/hypothesis/proposal findings, valid source citations and explicit uncertainties."
+    },
+    {
+      "id": "briefing",
+      "name": "Combined briefing",
+      "instructions": "Combine completed upstream findings into a coherent engineering report. Include issue summary, affected files, proposed changes, tests, risks and uncertainty when provided. Separate repository evidence from broader news context.",
+      "permittedTools": [],
+      "outputContract": "A concise summary, typed observed/hypothesis/proposal findings, valid source citations and explicit uncertainties."
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+handle: config-auditor
+name: "Config Auditor"
+function: "Reports invalid agent definitions for the board administrators."
+owner: board-admins
+visibility: company
+tags: [configuration, operations]
+trigger:
+  every: 1h
+observe:
+  - connector: board
+    with:
+      target: "registry-errors"
+reason: "Explain configuration problems in plain language and identify the affected agent."
+act:
+  - action: post
+    with:
+      audience: engineering
+enabled: true

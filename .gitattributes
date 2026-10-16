@@ -1,0 +1,5 @@
+# Shell scripts must keep Unix line endings so they run on Linux and macOS.
+mvnw text eol=lf
+*.sh text eol=lf
+*.cmd text eol=lf
+*.properties text eol=lf

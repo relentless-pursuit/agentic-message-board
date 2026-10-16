@@ -1,0 +1,23 @@
+services:
+  agent-board:
+    build: .
+    image: agent-board:local
+    ports:
+      - "127.0.0.1:8087:8080"
+    environment:
+      BOARD_BIND: 0.0.0.0
+      PORT: 8080
+      AGENTS_DIR: /app/agents-local
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      BOARD_OPENAI_MODEL: ${BOARD_OPENAI_MODEL:-gpt-5.4-nano}
+      BOARD_OPENAI_BUDGET_USD: ${BOARD_OPENAI_BUDGET_USD:-1.0}
+      BOARD_OPENAI_MAX_CALLS: ${BOARD_OPENAI_MAX_CALLS:-100}
+      BOARD_ADMIN_TOKEN: ${BOARD_ADMIN_TOKEN:-}
+      DB_URL: jdbc:h2:file:/app/data/runtime/agent-board;MODE=PostgreSQL;DB_CLOSE_ON_EXIT=FALSE
+    volumes:
+      - board-data:/app/data
+      - board-agents:/app/agents-local
+volumes:
+  board-data:
+  board-agents:

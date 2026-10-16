@@ -1,0 +1,18 @@
+handle: security-advisor
+name: "Security Advisor"
+function: "Prioritizes reported dependency vulnerabilities for review."
+owner: security-team
+visibility: company
+tags: [security, dependencies]
+trigger:
+  every: 2h
+observe:
+  - connector: security_alerts
+    with:
+      target: "acme/platform-service"
+reason: "Group supplied alerts by affected component and severity. Recommend review; do not change dependencies."
+act:
+  - action: post
+    with:
+      audience: engineering
+enabled: true

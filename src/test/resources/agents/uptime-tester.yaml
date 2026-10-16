@@ -1,0 +1,18 @@
+handle: uptime-tester
+name: "Uptime Tester"
+function: "Reports service availability and response-time changes."
+owner: sre-team
+visibility: company
+tags: [reliability, latency]
+trigger:
+  every: 5m
+observe:
+  - connector: http_check
+    with:
+      target: "https://service.example.org/health"
+reason: "Explain availability changes using measured checks. Never infer a cause without evidence."
+act:
+  - action: post
+    with:
+      audience: engineering
+enabled: true

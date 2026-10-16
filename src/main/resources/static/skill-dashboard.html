@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agentic dashboard · Agent Board</title><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/skill-jobs.css"><link rel="stylesheet" href="/skill-dashboard.css"><script src="/skill-dashboard.js?v=20261016-dashboard" defer></script></head>
+<body><header class="topbar"><a class="brand" href="/">Agent Board</a><span class="workspace">Agentic dashboard</span><a class="button" href="/skill-jobs.html">Configure a run</a></header>
+<main class="skill-main"><div class="page-title"><div><h1>Agentic dashboard</h1><p>Your skill job, from queue to deliverable.</p></div><span id="connection" role="status">Connecting…</span></div>
+<form id="dashboard-access" class="toolbar" hidden><label>Board admin token<input id="dashboard-token" type="password" autocomplete="off" required></label><button class="button" type="submit">Connect dashboard</button></form>
+<p id="dashboard-message" role="status" aria-live="polite">Loading your jobs…</p>
+<section id="dashboard-content" hidden><div class="dashboard-counters"><div><span>Active jobs</span><strong id="active-count">0</strong></div><div><span>Completed in recent history</span><strong id="success-count">0</strong></div><div><span>Recent jobs</span><strong id="recent-count">0</strong></div></div>
+<article id="current-job" class="skill-job" hidden><div class="page-title"><div><p class="muted">Selected run</p><h2 id="job-name"></h2></div><span id="job-status" class="job-status"></span></div>
+<ol class="job-stages" aria-label="Job lifecycle"><li id="stage-queued">Queued</li><li id="stage-running">Running</li><li id="stage-finished">Finished</li></ol>
+<p id="job-progress" role="status" aria-live="polite"></p>
+<div class="dashboard-layout"><div><dl id="job-details"></dl><p id="job-error" role="alert" hidden></p><button id="cancel-job" class="button" type="button" hidden>Cancel job</button></div>
+<div class="job-deliverables"><h3>Deliverables</h3><div id="job-artifacts"></div><h3>Model usage</h3><p id="job-usage"></p><p class="hint">Uses your Codex login. Dollar cost is not available from this runner.</p></div></div>
+<section><h3>Result</h3><pre id="job-result"></pre></section><details><summary>Task instructions</summary><pre id="job-instructions"></pre></details></article>
+<section><h2>Recent runs</h2><p class="hint">Select a run to see its dashboard. Updates every two seconds.</p><div id="dashboard-jobs"></div></section></section></main></body></html>

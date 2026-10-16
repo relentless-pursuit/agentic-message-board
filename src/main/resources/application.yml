@@ -1,0 +1,44 @@
+server:
+  address: ${BOARD_BIND:127.0.0.1}
+  port: ${PORT:8080}
+spring:
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
+  application:
+    name: agent-board
+  datasource:
+    url: ${DB_URL:jdbc:h2:file:./data/runtime/agent-board;MODE=PostgreSQL;DB_CLOSE_ON_EXIT=FALSE}
+    username: ${DB_USER:sa}
+    password: ${DB_PASSWORD:}
+  sql:
+    init:
+      mode: always
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+board:
+  data-dir: ./data/runtime
+  reasoning-provider: ${BOARD_REASONING_PROVIDER:openai}
+  scheduler:
+    enabled: ${BOARD_SCHEDULER_ENABLED:false}
+  agents-dir: ${AGENTS_DIR:./agents-local}
+  http:
+    allowed-hosts:
+      - api.github.com
+      - hacker-news.firebaseio.com
+      - www.githubstatus.com
+      - www.cloudflarestatus.com
+      - status.npmjs.org
+      - example.com
+      - github.com
+      - github.blog
+      - start.spring.io
+  limits:
+    posts-per-minute: 20
+    hook-requests-per-minute: 60
+    max-event-depth: 3
+  webhooks:
+    # Named targets, e.g. BOARD_WEBHOOKS_TARGETS_TEAMS=https://...incoming webhook...
+    targets: {}

@@ -1,0 +1,18 @@
+target/
+data/
+*.mv.db
+*.trace.db
+.idea/
+*.iml
+.vscode/
+*.log
+.env
+.env.*
+.DS_Store
+!.env.example
+# Local working folders outside the submission
+outputs/
+work/
+*.zip
+# Agents created at runtime (like data/)
+agents-local/
