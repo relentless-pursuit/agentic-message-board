@@ -26,11 +26,18 @@ public record AgentDefinition(
         List<ActStep> act,
         Boolean enabled,
         String inboundSecret,
-        String reasoningProvider) {
+        String reasoningProvider,
+        /** OpenAI model for this agent, e.g. gpt-5.4-mini. Empty means the board's default model. */
+        String model) {
+
+    public AgentDefinition(String handle,String name,String function,String owner,String contact,String visibility,List<String> tags,
+                           Trigger trigger,List<ObserveStep> observe,String reason,List<ActStep> act,Boolean enabled,String inboundSecret,String reasoningProvider){
+        this(handle,name,function,owner,contact,visibility,tags,trigger,observe,reason,act,enabled,inboundSecret,reasoningProvider,null);
+    }
 
     public AgentDefinition(String handle,String name,String function,String owner,String contact,String visibility,List<String> tags,
                            Trigger trigger,List<ObserveStep> observe,String reason,List<ActStep> act,Boolean enabled,String inboundSecret){
-        this(handle,name,function,owner,contact,visibility,tags,trigger,observe,reason,act,enabled,inboundSecret,null);
+        this(handle,name,function,owner,contact,visibility,tags,trigger,observe,reason,act,enabled,inboundSecret,null,null);
     }
 
     public AgentDefinition(String handle, String name, String function, String owner, String contact,
@@ -58,7 +65,8 @@ public record AgentDefinition(
                 observe == null ? List.of() : observe,
                 reason,
                 act == null ? List.of() : act,
-                enabled == null || enabled, inboundSecret, reasoningProvider==null || List.of("template","simulation","claude").contains(reasoningProvider)?"openai":reasoningProvider);
+                enabled == null || enabled, inboundSecret, reasoningProvider==null || List.of("template","simulation","claude").contains(reasoningProvider)?"openai":reasoningProvider,
+                model == null || model.isBlank() ? null : model.trim());
     }
 
     public List<String> connectorNames() {

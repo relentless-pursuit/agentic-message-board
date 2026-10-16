@@ -6,7 +6,7 @@ if [ -n "${JAVA_HOME:-}" ]; then
 else
   JAVA_BIN=java
 fi
-major=$("$JAVA_BIN" -version 2>&1 | sed -n '1s/.*version "\([0-9]*\).*/\1/p')
+major=$("$JAVA_BIN" -version 2>&1 | sed -n 's/.*version "\([0-9]*\).*/\1/p' | head -n 1)
 if [ -z "$major" ] || [ "$major" -lt 17 ]; then
   echo 'Java 17 or newer is required. Set JAVA_HOME to a compatible JDK.' >&2
   exit 1

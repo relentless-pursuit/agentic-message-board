@@ -16,3 +16,4 @@ work/
 *.zip
 # Agents created at runtime (like data/)
 agents-local/
+node_modules/

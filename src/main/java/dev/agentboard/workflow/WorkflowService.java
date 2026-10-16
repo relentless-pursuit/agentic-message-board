@@ -25,8 +25,9 @@ public class WorkflowService {
     public record Node(String id,String agent,String skill,double x,double y){}
     public record Edge(String from,String to,String output,String input){}
     public record Definition(String id,String name,List<Node> nodes,List<Edge> edges){}
-    public record NewAgent(String name,String function,String skill,String connector,Map<String,Object> settings){
-        public NewAgent(String name,String function,String skill){this(name,function,skill,"workflow_input",Map.of());}
+    public record NewAgent(String name,String function,String skill,String connector,Map<String,Object> settings,String model){
+        public NewAgent(String name,String function,String skill,String connector,Map<String,Object> settings){this(name,function,skill,connector,settings,null);}
+        public NewAgent(String name,String function,String skill){this(name,function,skill,"workflow_input",Map.of(),null);}
     }
     private final JdbcTemplate db;private final ObjectMapper json;private final AgentRegistry registry;
     private final RunService queue;private final RunRepository runs;private final PostRepository posts;
@@ -50,7 +51,10 @@ public class WorkflowService {
         }catch(Exception e){throw new IllegalStateException("Workflow template could not be read",e);}
     }
     public List<Skill> skills(){return db.query("SELECT detail FROM board_skills ORDER BY id",(rs,n)->json.readValue(rs.getString(1),Skill.class));}
-    public Map<String,Object> options(){return Map.of("providers",List.of(Map.of("id","openai","name","OpenAI · "+model.model(),"available",model.configured())),"model",model.model(),"configured",model.configured(),"capacity",usage.swarmCapacity(),"tools",ReadTools.NAMES);}
+    public Map<String,Object> options(){
+        var models=model.models().stream().map(m->Map.<String,Object>of("id",m.getId(),"inputUsdPerMillion",m.getInput(),"outputUsdPerMillion",m.getOutput())).toList();
+        return Map.of("providers",List.of(Map.of("id","openai","name","OpenAI · "+model.model(),"available",model.configured())),"model",model.model(),"models",models,"configured",model.configured(),"capacity",usage.swarmCapacity(),"tools",ReadTools.NAMES);
+    }
     public Map<String,Object> preflight(){try{return model.preflight();}catch(Exception e){throw bad(e.getMessage());}}
     private boolean hasSkill(String id){return Boolean.TRUE.equals(db.queryForObject("SELECT COUNT(*)>0 FROM board_skills WHERE id=?",Boolean.class,id));}
     public Skill skill(String id){return skills().stream().filter(s->s.id().equals(id)).findFirst().orElseThrow(()->bad("Unknown skill: "+id));}
@@ -70,21 +74,21 @@ public class WorkflowService {
         String handle="agent-"+UUID.randomUUID().toString().substring(0,12);
         String connector=input.connector()==null?"workflow_input":input.connector();
         if(!List.of("workflow_input","rss","hackernews").contains(connector))throw bad("Choose workflow input, RSS or Hacker News.");
-        createRegistryAgent(handle,input.name(),input.function(),s,new AgentDefinition.ObserveStep(connector,input.settings()==null?Map.of():input.settings()));
+        String chosen=input.model()==null || input.model().isBlank()?null:input.model().trim();
+        if(chosen!=null){try{model.allowed(chosen);}catch(IllegalArgumentException e){throw bad(e.getMessage());}}
+        createRegistryAgent(handle,input.name(),input.function(),s,new AgentDefinition.ObserveStep(connector,input.settings()==null?Map.of():input.settings()),chosen);
         return Map.of("agent",registry.view(handle).orElseThrow(),"skill",s.id());
     }
-    private void createRegistryAgent(String handle,String name,String function,Skill s){
-        createRegistryAgent(handle,name,function,s,new AgentDefinition.ObserveStep("workflow_input",Map.of()));
-    }
-    private void createRegistryAgent(String handle,String name,String function,Skill s,AgentDefinition.ObserveStep observe){
+    private void createRegistryAgent(String handle,String name,String function,Skill s,AgentDefinition.ObserveStep observe,String modelId){
         registry.create(new AgentDefinition(handle,name,function,"My team",null,"company",List.of("workflow"),
             new AgentDefinition.Trigger(null,null,null,null,null),List.of(observe),
-            s.instructions(),List.of(new AgentDefinition.ActStep("post",Map.of())),true,null,"openai"));
+            s.instructions(),List.of(new AgentDefinition.ActStep("post",Map.of())),true,null,"openai",modelId));
         db.update("INSERT INTO board_agent_skills(handle,skill_id) VALUES(?,?)",handle,s.id());
     }
     public List<Map<String,Object>> agents(){
         return db.query("SELECT handle,skill_id FROM board_agent_skills",(rs,n)->Map.<String,Object>of("handle",rs.getString(1),"skill",rs.getString(2)))
-            .stream().filter(a->registry.view((String)a.get("handle")).isPresent()).map(a->Map.<String,Object>of("agent",registry.view((String)a.get("handle")).orElseThrow(),"skill",a.get("skill"))).toList();
+            .stream().filter(a->registry.view((String)a.get("handle")).isPresent()).map(a->Map.<String,Object>of("agent",registry.view((String)a.get("handle")).orElseThrow(),"skill",a.get("skill"),
+                "model",model.modelFor(registry.definition((String)a.get("handle")).orElse(null)))).toList();
     }
     public synchronized Definition save(Definition d){
         validate(d);String id=d.id()==null || d.id().isBlank()?UUID.randomUUID().toString():d.id();identifier(id);
@@ -135,7 +139,10 @@ public class WorkflowService {
         if(!model.configured())throw bad("OPENAI_API_KEY is required on the server.");
         var capacity=usage.swarmCapacity();
         if(((Number)capacity.get("remainingAttempts")).intValue()<d.nodes().size() || ((Number)capacity.get("unreservedUsd")).doubleValue()<=0)throw bad("The shared API ledger has insufficient attempts or budget.");
-        preflight();
+        // Check every model this workflow uses before any agent starts.
+        for(String m:d.nodes().stream().map(n->model.modelFor(registry.definition(n.agent()).orElseThrow())).distinct().toList()){
+            try{model.preflight(m);}catch(Exception e){throw bad(e.getMessage());}
+        }
         Map<String,Object> pinned;
         try{pinned=readTools.pin(parameters);}catch(Exception e){throw bad("Source parameters: "+e.getMessage());}
         if(db.queryForObject("SELECT COUNT(*) FROM workflow_executions WHERE status='running'",Integer.class)>0)throw bad("A workflow is running. Wait for it to finish.");
@@ -143,9 +150,9 @@ public class WorkflowService {
         for(Node n:d.nodes()){
             var s=skill(n.skill());AgentDefinition a=registry.definition(n.agent()).orElseThrow();
             // Pin instructions and identity. Edits to definitions cannot change an in-flight run.
-            var snapshot=new AgentDefinition(a.handle(),a.name(),a.function(),a.owner(),a.contact(),a.visibility(),a.tags(),a.trigger(),a.observe(),s.instructions(),a.act(),a.enabled(),a.inboundSecret(),"openai");
+            var snapshot=new AgentDefinition(a.handle(),a.name(),a.function(),a.owner(),a.contact(),a.visibility(),a.tags(),a.trigger(),a.observe(),s.instructions(),a.act(),a.enabled(),a.inboundSecret(),"openai",model.modelFor(a));
             var state=new LinkedHashMap<String,Object>();state.put("node",n.id());state.put("agent",n.agent());state.put("name",a.name());state.put("function",a.function());
-            state.put("status","waiting");state.put("skill",s);state.put("snapshot",json.writeValueAsString(snapshot));states.add(state);
+            state.put("status","waiting");state.put("model",model.modelFor(a));state.put("skill",s);state.put("snapshot",json.writeValueAsString(snapshot));states.add(state);
         }
         var state=new LinkedHashMap<String,Object>();state.put("id",UUID.randomUUID().toString());state.put("name",d.name());state.put("definition",d);state.put("source",source);
         state.put("status","running");state.put("provider","openai");state.put("parameters",pinned);state.put("createdAt",Instant.now().toString());state.put("nodes",states);state.put("failNode",Objects.toString(failNode,""));

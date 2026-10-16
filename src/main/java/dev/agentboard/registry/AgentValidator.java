@@ -32,6 +32,7 @@ public final class AgentValidator {
         }
         validateTrigger(problems, a.trigger());
         if(a.reasoningProvider()!=null && !Set.of("openai").contains(a.reasoningProvider()))problems.add("unsupported reasoning provider");
+        if(a.model()!=null && !a.model().matches("[A-Za-z0-9._:-]{1,80}"))problems.add("model must be an OpenAI model id such as gpt-5.4-mini");
         if (a.observe() != null && a.observe().stream().anyMatch(s -> s == null || isBlank(s.connector()))) {
             problems.add("every observe step needs a connector");
         }

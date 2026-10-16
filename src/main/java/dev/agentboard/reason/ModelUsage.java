@@ -17,7 +17,7 @@ public class ModelUsage {
 
     @Transactional
     public long reserve(long runId, String model, double estimate) {
-        if (!model.equals("gpt-5.4-nano")) throw new IllegalArgumentException("Cost guard currently prices only gpt-5.4-nano");
+        if (config.price(model).isEmpty()) throw new IllegalArgumentException("The budget guard has no price for model " + model + "; add it to board.openai.models");
         // Row is installed by schema initialization; the conditional UPDATE is atomic across workers/processes.
         int changed=jdbc.update("UPDATE model_budget SET reserved_usd=reserved_usd+?, calls=calls+1 WHERE name='openai' AND reserved_usd+?<=? AND calls<?",
                 estimate, estimate, config.getBudgetUsd(), config.getMaxCalls());
@@ -30,7 +30,8 @@ public class ModelUsage {
         return keys.getKey().longValue();
     }
     public void success(long id,long input,long cached,long output) {
-        double cost=((input-cached)*0.20+cached*0.02+output*1.25)/1_000_000.0;
+        String model=jdbc.queryForObject("SELECT model FROM model_usage WHERE id=?",String.class,id);
+        double cost=config.price(model).orElseGet(()->config.price(config.getModel()).orElseThrow()).cost(input,cached,output);
         jdbc.update("UPDATE model_usage SET state='success',input_tokens=?,cached_input_tokens=?,output_tokens=?,estimated_usd=? WHERE id=?",
                 input,cached,output,cost,id);
     }
@@ -58,7 +59,8 @@ public class ModelUsage {
     public Map<String,Object> snapshot() {
         var result=jdbc.queryForMap("SELECT COUNT(*) AS attempts, COALESCE(SUM(input_tokens),0) AS input_tokens, COALESCE(SUM(cached_input_tokens),0) AS cached_input_tokens, COALESCE(SUM(output_tokens),0) AS output_tokens, COALESCE(SUM(estimated_usd),0) AS estimated_usd, COALESCE(SUM(reserved_usd),0) AS reserved_usd FROM model_usage");
         result.put("budgetUsd",config.getBudgetUsd()); result.put("maxAttempts",config.getMaxCalls());
-        result.put("model",config.getModel()); result.put("pricingSource","https://developers.openai.com/api/docs/models/gpt-5.4-nano");
+        result.put("model",config.getModel()); result.put("models",config.getModels().stream().map(BoardProperties.ModelPrice::getId).toList());
+        result.put("pricingSource","board.openai.models (USD per million tokens)");
         return result;
     }
 }

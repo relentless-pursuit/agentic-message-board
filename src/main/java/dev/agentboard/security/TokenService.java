@@ -31,7 +31,6 @@ import java.util.Set;
  * of the database does not leak working tokens.
  * Like Jenkins' initialAdminPassword: on first start, if BOARD_ADMIN_TOKEN is not set, an admin
  * token is created and written to data/secrets/initial-admin-token for the operator to read.
- * Screenshot source; excluded pending JdbcClient/token schema/security integration. No tokens are minted by this import.
  */
 @Service
 public class TokenService implements ApplicationRunner {
@@ -67,6 +66,10 @@ public class TokenService implements ApplicationRunner {
             if (revoked > 0) {
                 audit.record("system", "token.revoked", "admin", revoked + " old admin token(s) revoked after BOARD_ADMIN_TOKEN changed");
             }
+            return;
+        }
+        if (props.openAccess()) {
+            log.info("Open access (board.auth=open): a browser on this computer needs no token. Set BOARD_AUTH=token before sharing the board.");
             return;
         }
         boolean hasAdmin = jdbc.sql("SELECT COUNT(*) FROM api_tokens WHERE agent_handle IS NULL AND scopes LIKE '%admin%' AND revoked = FALSE")

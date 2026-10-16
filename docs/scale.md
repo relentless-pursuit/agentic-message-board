@@ -28,13 +28,13 @@ The reviewer needs Docker with Compose, an OpenAI API key with access to the con
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:8087/`. Read the board administration token with:
+Open `http://127.0.0.1:8087/`. The single-instance Compose file runs with `BOARD_AUTH=open` because its port is published on 127.0.0.1 only, so no board token is needed. `docker-compose.scale.yml` and any shared deployment use `BOARD_AUTH=token`: read the generated admin token with
 
 ```sh
-docker compose exec agent-board cat data/runtime/secrets/initial-admin-token
+docker compose -f docker-compose.scale.yml exec agent-board cat data/runtime/secrets/initial-admin-token
 ```
 
-This token authorizes board changes; the OpenAI key authorizes model usage. Credentials remain server-side. The board starts without a model key so setup errors can be diagnosed, but agent execution is blocked until credentials are configured. Skill installation never executes a model or creates agents.
+The board token authorizes board changes; the OpenAI key authorizes model usage. Credentials remain server-side. The board starts without a model key, but runs are blocked until one is set.
 
 H2 and created-agent files persist in named volumes. Stopping and restarting preserves them. `docker compose down -v` deletes those volumes and should only be used for an intentional reset.
 
@@ -65,7 +65,21 @@ Docker Compose runtime verification is recorded in `docs/validation.md`. A synta
 
 On-prem means the organization supplies the machine or server. Cloud means a provider supplies the infrastructure. The same container can run on either. On-prem does not imply offline inference: this version sends selected source excerpts to OpenAI.
 
-For a small cloud deployment, use one Linux VM with Docker/Compose, copy the project and private environment configuration, start the same recipe, and access it through an SSH tunnel. A shared web deployment additionally needs a domain/TLS reverse proxy, appropriate authenticated access and backup procedures. No cloud account or public hosted service is required for the local reviewer setup, and no infrastructure has been provisioned by this project.
+### Running it on-prem
+
+The same image runs on any Linux server with Docker. Nothing in the board depends on a cloud provider; the only outside service it needs is the OpenAI API.
+
+1. On the server, install Docker with Compose and copy the repository (or load a prebuilt image, see step 6).
+2. Copy `.env.example` to `.env` and set `OPENAI_API_KEY`, `BOARD_AUTH=token`, a long random `BOARD_ADMIN_TOKEN` and a strong `POSTGRES_PASSWORD`.
+3. Start the PostgreSQL recipe: `docker compose -f docker-compose.scale.yml up -d --build`. Data lives in the `pg-data`, `board-data` and `board-agents` volumes; back up `pg-data` like any PostgreSQL database.
+4. Keep the published port on `127.0.0.1` and put the company's reverse proxy (nginx, HAProxy, or an internal load balancer) with TLS in front of it. Set `BOARD_PUBLIC_URL` to the address people use.
+5. Allow outbound HTTPS to `api.openai.com` and to the sources your skills read (`api.github.com`, feed hosts, `hacker-news.firebaseio.com`). Every source host must also be listed under `board.http.allowed-hosts`. Behind a corporate proxy, pass `JAVA_TOOL_OPTIONS="-Dhttps.proxyHost=… -Dhttps.proxyPort=…"`.
+6. Without internet access for builds, build the image elsewhere, move it with `docker save agent-board:local | gzip > agent-board.tar.gz` and load it with `docker load`.
+7. Check `http://127.0.0.1:8087/actuator/health` from the server, then open the board through the proxy and press **Connect** with the admin token.
+
+On-prem here means the board, its database and its data stay on the company's machines. Prompts still go to OpenAI: the selected source excerpts and upstream results of every run leave the network. Keeping inference inside the network would need a model endpoint that the company runs; this version only calls `api.openai.com`.
+
+For a small cloud deployment, the steps are the same on one Linux VM; a managed PostgreSQL and the provider's load balancer can replace steps 3 and 4. No cloud account or public hosted service is required for the local reviewer setup, and no infrastructure has been provisioned by this project.
 
 ## How to scale beyond one application
 

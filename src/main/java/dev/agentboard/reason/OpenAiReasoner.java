@@ -52,12 +52,15 @@ public class OpenAiReasoner {
     private Completion complete(Map<String,Object> payload,long runId,boolean swarm) throws Exception {
         return decode(requestResponse(payload,runId,swarm),((Number)payload.get("max_output_tokens")).intValue());
     }
-    public Map<String,Object> preflight() throws Exception {
+    public Map<String,Object> preflight() throws Exception { return preflight(model()); }
+    /** Checks the key and that the account can use this model, without spending tokens. */
+    public Map<String,Object> preflight(String modelId) throws Exception {
         if(!configured())throw new IllegalStateException("OPENAI_API_KEY is required on the server.");
-        var request=HttpRequest.newBuilder(URI.create("https://api.openai.com/v1/models/"+java.net.URLEncoder.encode(model(),StandardCharsets.UTF_8))).timeout(config.getTimeout()).header("Authorization","Bearer "+key()).GET().build();
+        allowed(modelId);
+        var request=HttpRequest.newBuilder(URI.create("https://api.openai.com/v1/models/"+java.net.URLEncoder.encode(modelId,StandardCharsets.UTF_8))).timeout(config.getTimeout()).header("Authorization","Bearer "+key()).GET().build();
         var response=client.send(request,HttpResponse.BodyHandlers.discarding());
-        if(response.statusCode()!=200)throw new IllegalStateException("OpenAI model preflight failed (HTTP "+response.statusCode()+"). Check OPENAI_API_KEY and BOARD_OPENAI_MODEL="+model()+". No model was substituted.");
-        return Map.of("available",true,"model",model(),"checkedAt",java.time.Instant.now().toString());
+        if(response.statusCode()!=200)throw new IllegalStateException("OpenAI model preflight failed for "+modelId+" (HTTP "+response.statusCode()+"). Check OPENAI_API_KEY and that your account can use this model. No model was substituted.");
+        return Map.of("available",true,"model",modelId,"checkedAt",java.time.Instant.now().toString());
     }
     public tools.jackson.databind.JsonNode requestResponse(Map<String,Object> payload,long runId,boolean swarm) throws Exception {
         String secret=key();
@@ -66,8 +69,9 @@ public class OpenAiReasoner {
         long reservation=0;
         try {
             pace();byte[] body=json.writeValueAsBytes(payload);
-            double estimate=((body.length*2L+4096)*0.20+((Number)payload.get("max_output_tokens")).intValue()*1.25)/1_000_000.0;
-            reservation=swarm?usage.reserveSwarm(runId,config.getModel(),estimate):usage.reserve(runId,config.getModel(),estimate);
+            String modelId=String.valueOf(payload.get("model"));var price=allowed(modelId);
+            double estimate=price.cost(body.length*2L+4096,0,((Number)payload.get("max_output_tokens")).intValue());
+            reservation=swarm?usage.reserveSwarm(runId,modelId,estimate):usage.reserve(runId,modelId,estimate);
             var request=HttpRequest.newBuilder(URI.create("https://api.openai.com/v1/responses"))
                     .timeout(config.getTimeout()).header("Authorization","Bearer "+secret).header("Content-Type","application/json")
                     .POST(HttpRequest.BodyPublishers.ofByteArray(body)).build();
@@ -84,7 +88,7 @@ public class OpenAiReasoner {
     }
     public Completion decode(tools.jackson.databind.JsonNode envelope,int limit) {
         var tokens=envelope.path("usage");long in=tokens.path("input_tokens").asLong(),cached=tokens.path("input_tokens_details").path("cached_tokens").asLong(),out=tokens.path("output_tokens").asLong();
-        Map<String,Object> totals=Map.of("inputTokens",in,"cachedInputTokens",cached,"outputTokens",out,"estimatedUsd",((in-cached)*0.20+cached*0.02+out*1.25)/1_000_000.0);
+        Map<String,Object> totals=Map.of("inputTokens",in,"cachedInputTokens",cached,"outputTokens",out,"estimatedUsd",priceFor(envelope.path("model").asText(model())).cost(in,cached,out));
         if(!"completed".equals(envelope.path("status").asText())) {
             String reason=envelope.path("incomplete_details").path("reason").asText("not_reported");
             String message=reason.equals("max_output_tokens")?"OpenAI stopped at the output limit ("+out+"/"+limit+" tokens). Partial JSON was discarded; later agents did not start.":"OpenAI response "+envelope.path("status").asText()+" (reason: "+reason+"). Partial output was discarded.";
@@ -106,7 +110,21 @@ public class OpenAiReasoner {
         public final String reason;public final Map<String,Object> usage;
         public ResponseProblem(String message,String reason,Map<String,Object> usage){super(message);this.reason=reason;this.usage=usage;}
     }
+    /** The board's default model. */
     public String model(){return config.getModel();}
+    /** The model an agent runs with: its own choice if it made one, otherwise the default. */
+    public String modelFor(AgentDefinition agent){return agent==null || agent.model()==null?config.getModel():agent.model();}
+    /** Models agents may choose, with prices. */
+    public List<BoardProperties.ModelPrice> models(){return List.copyOf(config.getModels());}
+    /** Price of a model that agents may use; anything else is refused before a request is sent. */
+    public BoardProperties.ModelPrice allowed(String modelId){
+        return config.price(modelId).orElseThrow(()->new IllegalArgumentException("Model "+modelId+" is not allowed. Allowed models: "+config.getModels().stream().map(BoardProperties.ModelPrice::getId).toList()+" (board.openai.models)."));
+    }
+    /** Price for a model name in a response, which may carry a date suffix such as gpt-5.4-mini-2026-03-17. */
+    public BoardProperties.ModelPrice priceFor(String responseModel){
+        return config.getModels().stream().filter(m->responseModel.equals(m.getId()) || responseModel.startsWith(m.getId()+"-"))
+                .max(Comparator.comparingInt(m->m.getId().length())).orElseGet(()->allowed(config.getModel()));
+    }
     public record Completion(tools.jackson.databind.JsonNode answer,Map<String,Object> usage){}
     private static String cut(String s,int n) { return s==null?"":s.substring(0,Math.min(s.length(),n)); }
 }

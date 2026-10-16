@@ -34,7 +34,10 @@ services:
       BOARD_OPENAI_MODEL: ${BOARD_OPENAI_MODEL:-gpt-5.4-nano}
       BOARD_OPENAI_BUDGET_USD: ${BOARD_OPENAI_BUDGET_USD:-1.0}
       BOARD_OPENAI_MAX_CALLS: ${BOARD_OPENAI_MAX_CALLS:-100}
+      # Shared deployments always require a board token.
+      BOARD_AUTH: ${BOARD_AUTH:-token}
       BOARD_ADMIN_TOKEN: ${BOARD_ADMIN_TOKEN:-}
+      BOARD_PUBLIC_URL: ${BOARD_PUBLIC_URL:-http://127.0.0.1:8087}
     volumes:
       - board-data:/app/data
       - board-agents:/app/agents-local

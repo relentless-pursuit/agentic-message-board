@@ -27,7 +27,7 @@ class WorkflowIntegrationTest {
     @Autowired WorkflowService service;@Autowired RunRepository runs;@Autowired AgentReportStore reports;@Autowired ObjectMapper json;@Autowired MockMvc mvc;@Autowired TokenService tokens;
     @MockitoBean OpenAiReasoner model;
     @BeforeEach void model()throws Exception{
-        when(model.configured()).thenReturn(true);when(model.model()).thenReturn("model-fixture");when(model.preflight()).thenReturn(Map.of("available",true));
+        when(model.configured()).thenReturn(true);when(model.model()).thenReturn("model-fixture");when(model.preflight()).thenReturn(Map.of("available",true));when(model.preflight(anyString())).thenReturn(Map.of("available",true));when(model.modelFor(any())).thenReturn("model-fixture");when(model.allowed(any())).thenReturn(new dev.agentboard.config.BoardProperties.ModelPrice("model-fixture",0.20,0.02,1.25));
         when(model.requestResponse(anyMap(),anyLong(),eq(false))).thenAnswer(i->{Map<String,Object> request=i.getArgument(0);if(request.get("instructions").toString().contains("Failing Agent"))throw new IllegalStateException("Model fixture outage");
             var answer=Map.of("title","Fixture model report","summary","coverage missing; supplied model fixture","findings",List.of(Map.of("text","Supplied fixture only","kind","hypothesis","evidenceIds",List.of())),"uncertainties",List.of("Fixture response"),"citations",List.of());
             return json.valueToTree(Map.of("id","resp_fixture_"+UUID.randomUUID(),"model","model-fixture","status","completed","usage",Map.of("input_tokens",50,"output_tokens",40),"output",List.of(Map.of("type","message","content",List.of(Map.of("type","output_text","text",json.writeValueAsString(answer)))))));});

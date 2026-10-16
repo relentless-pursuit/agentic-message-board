@@ -92,6 +92,16 @@ public class BoardApiController {
         return m;
     }
 
+    /** Tells the page whether it needs a token. Never answers 401, so a fresh page load logs no error. */
+    @GetMapping("/access")
+    public Map<String, Object> access() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("mode", props.getAuth());
+        m.put("signedIn", Callers.current().isPresent());
+        m.put("name", Callers.current().map(p -> p.name()).orElse(null));
+        return m;
+    }
+
     @GetMapping("/whoami")
     public ResponseEntity<Object> whoami() {
         return Callers.current().<ResponseEntity<Object>>map(p -> ResponseEntity.ok(Map.of("name", p.name(), "scopes", p.scopes())))

@@ -28,6 +28,12 @@ public class BoardProperties {
     private String timezone = ZoneId.systemDefault().getId();
     /** The address people use to open the board; used for links in webhooks. */
     private String publicUrl = "http://localhost:8080";
+    /**
+     * token = every change needs a board token (use this whenever other people can reach the board).
+     * open  = no token for a browser on the same computer: the request must be addressed to localhost
+     *         and, when it carries an Origin, come from this board's own page.
+     */
+    private String auth = "token";
 
     private final Scheduler scheduler = new Scheduler();
     private final Workers workers = new Workers();
@@ -50,6 +56,9 @@ public class BoardProperties {
     public void setTimezone(String timezone) { this.timezone = timezone; }
     public String getPublicUrl() { return publicUrl; }
     public void setPublicUrl(String publicUrl) { this.publicUrl = publicUrl; }
+    public String getAuth() { return auth; }
+    public void setAuth(String auth) { this.auth = auth; }
+    public boolean openAccess() { return "open".equals(auth); }
     public Scheduler getScheduler() { return scheduler; }
     public Workers getWorkers() { return workers; }
     public Openai getOpenai() { return openai; }
@@ -96,7 +105,13 @@ public class BoardProperties {
     }
 
     public static class Openai {
+        /** Model used when an agent does not name one. Must be one of {@link #models}. */
         private String model = "gpt-5.4-nano";
+        /** Models agents may use, with USD prices per million tokens for the budget guard. */
+        private List<ModelPrice> models = new ArrayList<>(List.of(
+                new ModelPrice("gpt-5.4-nano", 0.20, 0.02, 1.25),
+                new ModelPrice("gpt-5.4-mini", 0.75, 0.075, 4.50),
+                new ModelPrice("gpt-5.4", 2.50, 0.25, 15.00)));
         private String keyFile = "data/secrets/openai-api-key";
         private int maxConcurrent = 2;
         private int maxCalls = 100;
@@ -105,6 +120,11 @@ public class BoardProperties {
         private Duration requestSpacing = Duration.ofSeconds(2);
         public String getModel() { return model; }
         public void setModel(String v) { model = v; }
+        public List<ModelPrice> getModels() { return models; }
+        public void setModels(List<ModelPrice> v) { models = v; }
+        public java.util.Optional<ModelPrice> price(String id) {
+            return models.stream().filter(m -> m.getId().equals(id)).findFirst();
+        }
         public String getKeyFile() { return keyFile; }
         public void setKeyFile(String v) { keyFile = v; }
         public int getMaxConcurrent() { return maxConcurrent; }
@@ -117,6 +137,30 @@ public class BoardProperties {
         public void setTimeout(Duration v) { timeout = v; }
         public Duration getRequestSpacing() { return requestSpacing; }
         public void setRequestSpacing(Duration v) { requestSpacing = v; }
+    }
+
+    /** One allowed OpenAI model and its price in USD per million tokens. */
+    public static class ModelPrice {
+        private String id;
+        private double input;
+        private double cachedInput;
+        private double output;
+        public ModelPrice() { }
+        public ModelPrice(String id, double input, double cachedInput, double output) {
+            this.id = id; this.input = input; this.cachedInput = cachedInput; this.output = output;
+        }
+        public String getId() { return id; }
+        public void setId(String v) { id = v; }
+        public double getInput() { return input; }
+        public void setInput(double v) { input = v; }
+        public double getCachedInput() { return cachedInput; }
+        public void setCachedInput(double v) { cachedInput = v; }
+        public double getOutput() { return output; }
+        public void setOutput(double v) { output = v; }
+        /** Cost of one response in USD. */
+        public double cost(long inputTokens, long cachedTokens, long outputTokens) {
+            return ((inputTokens - cachedTokens) * input + cachedTokens * cachedInput + outputTokens * output) / 1_000_000.0;
+        }
     }
 
     public static class Codex {

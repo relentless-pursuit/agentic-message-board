@@ -1,5 +1,6 @@
 package dev.agentboard.security;
 
+import dev.agentboard.config.BoardProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -14,22 +15,22 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
 /**
  * Diagram box "Security filter": reading the board is open (company visibility). Every write
- * needs a token with the right scope. Webhooks are checked by their HMAC signature instead.
+ * needs a token with the right scope, except with board.auth=open, where a browser on the same
+ * computer acts as the operator (see BearerTokenFilter). Webhooks are checked by their HMAC signature instead.
  * No cookies or sessions are used, so cross-site request forgery does not apply.
- * Screenshot source; excluded until security dependencies, token schema and UI/API access are integrated.
  */
 @Configuration
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, TokenService tokens) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, TokenService tokens, BoardProperties props) throws Exception {
         http.csrf(c -> c.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .httpBasic(b -> b.disable())
                 .formLogin(f -> f.disable())
                 .logout(l -> l.disable())
                 .requestCache(c -> c.disable())
-                .addFilterBefore(new BearerTokenFilter(tokens), AnonymousAuthenticationFilter.class)
+                .addFilterBefore(new BearerTokenFilter(tokens, props.openAccess()), AnonymousAuthenticationFilter.class)
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .headers(h -> h.contentSecurityPolicy(csp -> csp.policyDirectives(
                         "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'")))
