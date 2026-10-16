@@ -31,7 +31,11 @@ class ModelUsageTest {
         assertThat(((Number)usage.snapshot().get("estimated_usd")).doubleValue()).isCloseTo(0.000378,within(0.00000001));
         assertThat(((Number)usage.snapshot().get("cached_input_tokens")).longValue()).isEqualTo(400);
     }
-    @Test void unpricedModelsAreRejected() {
-        assertThatThrownBy(()->ledger(1,1).reserve(1,"unknown-model",0.01)).isInstanceOf(IllegalArgumentException.class);
+    @Test void unlistedModelsAreChargedTheFallbackPrice() {
+        var known=ledger(2,1);known.success(known.reserve(1,"gpt-5.4-nano",0.01),1000,0,1000);
+        var unlisted=ledger(2,1);unlisted.success(unlisted.reserve(1,"some-new-model",0.01),1000,0,1000);
+        double knownUsd=((Number)known.snapshot().get("estimated_usd")).doubleValue();
+        double unlistedUsd=((Number)unlisted.snapshot().get("estimated_usd")).doubleValue();
+        assertThat(unlistedUsd).isGreaterThan(knownUsd);
     }
 }
