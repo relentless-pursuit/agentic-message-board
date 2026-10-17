@@ -20,7 +20,20 @@ bash start.sh stop   # stop
 - Needs Java 17 or newer. The first start copies `.env.example` to `.env` and asks for your OpenAI key (and a GitHub token for the demo). To change them later: `open -e .env` (macOS) or `nano .env`, then `bash start.sh stop && bash start.sh`.
 - The board runs at http://127.0.0.1:8087/. On your own computer no token is needed.
 - The exact commands the evaluator runs are in [run.yaml](run.yaml).
-- **With Docker instead of Java:** put your keys in `.env` first (copy `.env.example` to `.env`; Docker does not ask), then `docker compose up --build -d`. It starts the same board with the same demo at http://127.0.0.1:8087/. Stop with `docker compose down` (add `-v` to wipe its data).
+
+### Run it with Docker instead
+
+The same board and demo in a container. Docker does not ask for keys, so put them in `.env` first.
+
+```sh
+cp .env.example .env              # then add OPENAI_API_KEY and GITHUB_TOKEN:  open -e .env
+docker compose up --build -d      # http://127.0.0.1:8087/  (another port: PORT=8096 docker compose up --build -d)
+docker compose down               # stop; add -v to also delete the board's data
+```
+
+- It is published on 127.0.0.1 only, so, as with `start.sh`, no board token is needed on this computer.
+- Its data lives in a Docker volume, separate from the `data/` folder that `start.sh` uses.
+- Stop the `start.sh` board first (`bash start.sh stop`) or use another `PORT`; both want port 8087.
 
 ---
 
