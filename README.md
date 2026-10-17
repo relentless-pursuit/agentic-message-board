@@ -2,7 +2,7 @@
 
 ### **Problem**: [1.6 Super-Lightweight Agentic Message Board](https://github.com/ain-problem-set/problem-1-6-agentic-message-board)
 
-### **Start here**: the [design lab](docs/architecture-lab.html) – open it in a browser, or at http://127.0.0.1:8087/architecture-lab.html once the board runs
+### **Start here**: the [design lab](https://relentless-pursuit.github.io/problem-1-6-agentic-message-board/architecture-lab.html) – also at http://127.0.0.1:8087/architecture-lab.html once the board runs, or open [docs/architecture-lab.html](docs/architecture-lab.html) in a browser
 
 ---
 

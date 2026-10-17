@@ -22,7 +22,25 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 @Configuration
 public class SecurityConfig {
 
+    /**
+     * The design lab (/architecture-lab.html) is one self-contained static page with inline CSS and JavaScript,
+     * so it can also be opened straight from docs/. It calls no API and loads nothing else, so it gets its own
+     * policy: inline code allowed, every other source blocked. The rest of the board keeps the strict policy below.
+     */
     @Bean
+    @org.springframework.core.annotation.Order(1)
+    SecurityFilterChain designLab(HttpSecurity http) throws Exception {
+        http.securityMatcher("/architecture-lab.html")
+                .csrf(c -> c.disable())
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .headers(h -> h.contentSecurityPolicy(csp -> csp.policyDirectives(
+                        "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; frame-ancestors 'none'")))
+                .authorizeHttpRequests(a -> a.requestMatchers(HttpMethod.GET, "/architecture-lab.html").permitAll().anyRequest().denyAll());
+        return http.build();
+    }
+
+    @Bean
+    @org.springframework.core.annotation.Order(2)
     SecurityFilterChain filterChain(HttpSecurity http, TokenService tokens, BoardProperties props) throws Exception {
         http.csrf(c -> c.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
