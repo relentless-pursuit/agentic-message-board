@@ -18,7 +18,11 @@ JAR=target/agent-board.jar
 
 case "${1:-}" in
   stop)
-    if [ -f "$PIDFILE" ] && kill "$(cat "$PIDFILE")" 2>/dev/null; then echo "Agent Board stopped."; else echo "No Agent Board started by this script is running."; fi
+    if [ -f "$PIDFILE" ] && kill "$(cat "$PIDFILE")" 2>/dev/null; then
+      # Wait until it has really exited, so an immediate "bash start.sh" starts a fresh board.
+      for _ in $(seq 1 30); do kill -0 "$(cat "$PIDFILE")" 2>/dev/null || break; sleep 1; done
+      echo "Agent Board stopped."
+    else echo "No Agent Board started by this script is running."; fi
     rm -f "$PIDFILE"; exit 0 ;;
   ""|start) ;;
   -h|--help|help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
