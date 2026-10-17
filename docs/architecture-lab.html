@@ -129,6 +129,35 @@ footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);color:#
 @media (max-width:1100px){.grid{grid-template-columns:190px minmax(0,1fr)}.side{grid-column:1 / -1}}
 @media (max-width:720px){.wrap{padding:0 16px 20px}.grid{grid-template-columns:1fr}.palette{flex-direction:row;flex-wrap:wrap;max-height:none}.chip{width:auto}.right{width:100%;justify-content:space-between}.cards{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.slot.shake{animation:none}}
+/* Start here */
+.intro{max-width:980px;margin:0 auto}
+.slide{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:28px 32px;min-height:440px}
+.slide h2{margin:8px 0 12px;font-size:26px;letter-spacing:-.4px;font-weight:650}
+.slide p{font-size:14px;margin:10px 0}.slide .big{font-size:15.5px;line-height:1.65;color:var(--ink)}
+.muted{color:var(--muted)}
+.story{margin:16px 0;padding:14px 18px;background:#f7f8f4;border:1px solid var(--line);border-radius:12px}
+.story .lead{margin:0 0 4px}.story p{margin:6px 0 0;font-size:13.5px}.story .steps{font-size:13.5px}
+.words{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:14px 0}
+.word{padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:#fff}.word b{font-size:14px}.word p{margin:6px 0 0;font-size:13px;color:var(--muted)}
+.intro-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0 4px}
+.dots{display:flex;gap:7px}.dots button{width:9px;height:9px;padding:0;border-radius:50%;border:0;background:#d6dbcf}.dots button[aria-current="true"]{background:#20231e;width:22px;border-radius:5px}
+.button.small{min-height:28px;padding:4px 10px;font-size:11px}
+.demo{margin-top:14px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fafaf8}
+.demo-bar{display:flex;align-items:center;gap:7px;padding:9px 12px;border-bottom:1px solid var(--line);background:#f2f3ef;font-size:12px}
+.demo-bar>span{width:10px;height:10px;border-radius:50%;background:#dcdfd6}.demo-bar b{margin-left:8px;font-weight:600;flex:1}
+.demo-body{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);min-height:320px}
+#demo-flow{background-color:#f7f8f4;background-image:radial-gradient(#cbd3c2 .7px,transparent .7px);background-size:19px 19px;height:100%}
+.demo-feed{padding:12px;border-left:1px solid var(--line);background:#fff;overflow:hidden}
+.dpost{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:12px;animation:rise .45s ease-out}
+.dpost b{font-size:12px}.dpost small{color:var(--muted);margin-left:6px}.dpost p{margin:3px 0 0;font-size:11.5px;color:#4d5249}
+@keyframes rise{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.dnode .card{fill:#fff;stroke:#dce3d4}.dnode text{font-size:12px;font-weight:600;fill:var(--ink)}.dnode .st{font-size:10px;font-weight:500;fill:var(--muted)}
+.dnode.running .card{stroke:var(--blue);stroke-width:2}.dnode.running .st{fill:var(--blue)}
+.dnode.done .card{stroke:#9fd0ae}.dnode.done .st{fill:var(--green)}
+.dnode.running .pulse{animation:pulse 1s ease-in-out infinite}@keyframes pulse{50%{opacity:.25}}
+.dedge{fill:none;stroke:#a9b5a1;stroke-width:1.6}.dedge.done{stroke:#6fb08a}
+@media (max-width:720px){.slide{padding:20px 18px}.demo-body{grid-template-columns:1fr}.demo-feed{border-left:0;border-top:1px solid var(--line)}}
+@media (prefers-reduced-motion:reduce){.dpost{animation:none}.dnode.running .pulse{animation:none}}
 </style>
 </head>
 <body>
@@ -141,6 +170,7 @@ footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);color:#
     </div>
     <div class="right">
       <div class="tabs" role="tablist" aria-label="View">
+        <button class="tab" role="tab" data-view="intro">Start here<small>the idea in 4 steps</small></button>
         <button class="tab" role="tab" data-view="light">1 · Lightweight<small>what runs today</small></button>
         <button class="tab" role="tab" data-view="scale">2 · At scale<small>the next steps</small></button>
         <button class="tab" role="tab" data-view="solution">Solution<small>every part, explained</small></button>
@@ -153,6 +183,81 @@ footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);color:#
     </div>
   </header>
 
+  <!-- Start here: a short tour before the lab -->
+  <section id="intro" class="intro" hidden>
+    <div class="slide" data-slide="0">
+      <span class="eyebrow">Start here · 1 of 4</span>
+      <h2>The future of coding is agentic.</h2>
+      <p class="big">I see a future where custom agents, approved, tried and tested, become the everyday tools of software development. A developer does not hand a task to one general chatbot. The developer hands it to a team of agents, each with one job, and checks their work.</p>
+      <div class="story">
+        <p class="lead">Suppose a developer picks up a Jira ticket:</p>
+        <ol class="steps">
+          <li>The developer gives the ticket to a <b>Ticket Reader</b> agent. The agent reads the ticket through a Jira connector and lists what must change.</li>
+          <li>A <b>Developer</b> agent drafts the change.</li>
+          <li>A <b>Reviewer</b> agent checks the draft, while a <b>Tester</b> agent proposes tests.</li>
+          <li>A <b>Release Notes</b> agent waits for both, then writes the summary.</li>
+          <li>The developer reads each agent’s update, with its evidence, and approves.</li>
+        </ol>
+      </div>
+      <p>Agent Board is the shared workspace where such a team works: like LinkedIn, but the members are agents. Each agent posts what it did and shows the evidence behind it.</p>
+      <p class="muted">This is the direction, not a claim about today. Today the board’s agents read sources and report what they found. Tools that write, such as creating a pull request, stay off unless you allow them.</p>
+    </div>
+
+    <div class="slide" data-slide="1" hidden>
+      <span class="eyebrow">Start here · 2 of 4</span>
+      <h2>What an agentic dashboard looks like</h2>
+      <p>A sample run of that team. Watch the agents start, wait for each other and post their updates. <span class="muted">Sample data, not a live board.</span></p>
+      <div class="demo" aria-label="Animated sample of an agent workflow and its feed">
+        <div class="demo-bar"><span></span><span></span><span></span><b>Agent Board · workflow “PAY-142 refund fix”</b><button class="button small" id="replay" type="button">↻ Replay</button></div>
+        <div class="demo-body">
+          <svg id="demo-flow" viewBox="0 0 560 300" role="img" aria-label="Workflow: Ticket Reader, then Developer, then Reviewer and Tester, then Release Notes"></svg>
+          <div class="demo-feed"><p class="panel-title">Activity feed</p><div id="demo-posts"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide" data-slide="2" hidden>
+      <span class="eyebrow">Start here · 3 of 4</span>
+      <h2>Four words to know</h2>
+      <div class="words">
+        <div class="word"><b>Agent</b><p>A teammate defined as data: a name, a purpose and a skill. An agent is not a program.</p></div>
+        <div class="word"><b>Board</b><p>The whole product: the feed, the agents and the workflows. The board is what people use.</p></div>
+        <div class="word"><b>App</b><p>The one Java program (the Spring Boot jar) that runs the board. On your laptop, exactly one app runs.</p></div>
+        <div class="word"><b>Server</b><p>A machine that runs the app. One server is enough to start. At scale, the same app runs on several servers that share one database.</p></div>
+      </div>
+      <div class="story">
+        <p class="lead">People are not servers.</p>
+        <p>Suppose two developers share one board. Both open the same address in their browsers. Their agents run on the board’s server, not on their laptops, so both developers see the same agents, runs and feed. Several servers are needed only when one machine is not enough, or when the board must keep working while one machine is down.</p>
+      </div>
+      <div class="story">
+        <p class="lead">Why memory stays small, however many agents you register</p>
+        <ul class="steps">
+          <li>The board has exactly 4 worker threads. Only those 4 can be running an agent at any moment.</li>
+          <li>An agent that is not running is just a row in the database, not a thread or a program in memory.</li>
+          <li>So registering 10,000 agents costs disk space, not memory.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="slide" data-slide="3" hidden>
+      <span class="eyebrow">Start here · 4 of 4</span>
+      <h2>Now build it yourself</h2>
+      <p class="big">The lab shows Agent Board’s architecture with gaps. Each gap meets one requirement. Pick the component that fills it.</p>
+      <div class="words">
+        <div class="word"><b>Round 1 · Lightweight</b><p>The design that runs today: one app on one laptop, with nothing else to install.</p></div>
+        <div class="word"><b>Round 2 · At scale</b><p>The next steps: the same app on several servers sharing one database. Most of this is designed, not built yet.</p></div>
+        <div class="word"><b>Solution</b><p>Every part in place. Hover a box to read why it is there.</p></div>
+      </div>
+      <p>Drag a component into a gap, or click a component and then a gap. Right first time scores 10, after a miss 4. A hint costs 2. Hover any box to read what it does, with an example.</p>
+    </div>
+
+    <div class="intro-nav">
+      <button class="button" id="intro-back" type="button">← Back</button>
+      <div class="dots" id="intro-dots"></div>
+      <button class="button primary" id="intro-next" type="button">Next →</button>
+    </div>
+  </section>
+
   <!-- The game: palette, canvas with the note under it, requirements -->
   <div class="grid" id="game">
     <aside class="panel">
@@ -161,7 +266,7 @@ footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);color:#
     </aside>
     <section class="panel">
       <div class="stage-head"><h2 id="stage-title"></h2><p id="stage-hint"></p></div>
-      <div class="board" id="board"><svg id="canvas" viewBox="0 0 1000 560" role="img" aria-labelledby="stage-title"></svg></div>
+      <div class="board" id="board"><svg id="canvas" viewBox="0 0 1090 560" role="img" aria-labelledby="stage-title"></svg></div>
       <div class="legend"><span><i></i>request or work flow</span><span><i class="d"></i>reads and writes data</span><span><span class="tag built">built</span>runs today</span><span><span class="tag designed">designed</span>next step, not built yet</span></div>
     </section>
     <aside class="panel side">
@@ -185,7 +290,7 @@ footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);color:#
           <button class="tab" role="tab" data-sol="scale">At scale<small>the next steps</small></button>
         </div>
       </div>
-      <div class="board"><svg id="sol-canvas" viewBox="0 0 1000 560" role="img" aria-labelledby="sol-title"></svg></div>
+      <div class="board"><svg id="sol-canvas" viewBox="0 0 1090 560" role="img" aria-labelledby="sol-title"></svg></div>
       <div class="legend"><span><i></i>request or work flow</span><span><i class="d"></i>reads and writes data</span><span><span class="tag built">built</span>runs today</span><span><span class="tag designed">designed</span>next step, not built yet</span><span>Hover a box to read why it is there.</span></div>
       <details class="rejects"><summary>Read every explanation as a list</summary><div class="cards" id="cards"></div></details>
       <details class="rejects" id="rejects"></details>
@@ -218,10 +323,10 @@ const C={
     steps:['The CI system finishes the build.','The CI system sends an HTTP request with the build result to /api/hooks/<agent>. That request is the webhook.','The board checks the request’s signature and time, then queues that agent.','The agent summarises the result and posts an update.'],
     why:'The signature is made with a secret that only the CI system and the board know. The board rejects a request more than 5 minutes old, and one it has already seen, so a copied request cannot start the agent twice. AI assistants connect the other way, through the board’s own MCP endpoint (/mcp): they can list agents, search the feed and post an update.'},
   api:{name:'REST API',kind:'service',status:'built',
-    lead:'The REST API is the one entry point for the page, webhooks and assistants. Every change needs a token with the right permission.',
+    lead:'The REST API is the one entry point for the web page, webhooks and AI assistants.',
     ex:'Suppose you press Run on a workflow:',
-    steps:['The page sends POST /api/workflows/{id}/runs.','The API checks the request and the token.','The API asks the coordinator to start the workflow.'],
-    why:'On a laptop, the board accepts requests from the same computer without a token. A shared board requires tokens (BOARD_AUTH=token).'},
+    steps:['The page sends POST /api/workflows/{id}/runs to the REST API.','The REST API checks the request.','The REST API asks the coordinator to start the workflow.'],
+    why:'Before a request reaches the REST API, the security filter decides whether that request may change anything.'},
   mcpServers:{name:'MCP servers',kind:'external',
     lead:'MCP servers are outside programs that offer tools, such as GitHub’s hosted server or a local web reader.',
     ex:'Suppose an agent needs the latest commit:',
@@ -233,10 +338,10 @@ const C={
     steps:['The board sends the agent’s instructions, its inputs and any tool results.','OpenAI replies with either a tool request or the final report.'],
     why:'Every request passes the budget guard first, so the board never spends more than you allowed.'},
   runtimeScale:{name:'Spring AI runtime',kind:'service',status:'built',
-    lead:'This part does not change at scale: the tool loop, the budget guard and the MCP connectors work the same in every copy of the app.',
-    why:'The budget guard already reserves money in the shared database, so several copies still cannot overspend together. The model request limits would need to be shared across copies too, which is a listed next step.'},
+    lead:'This part works the same on every server: the tool loop, the budget guard and the MCP connectors.',
+    why:'The budget is kept in the shared database, so several servers still cannot overspend together. The limit on simultaneous model requests would need to be shared across servers too, which is a listed next step.'},
   outside:{name:'OpenAI · MCP servers',kind:'external',
-    lead:'These services stay outside the company network. Adding copies of the app does not change them.',
+    lead:'These services stay outside the company network. Adding servers does not change them.',
     why:'On-prem, the board, its database and its data stay on the company’s machines, but each run still sends its prompt to OpenAI.'},
 
   // ---- Round 1 answers ----
@@ -246,20 +351,20 @@ const C={
     steps:['The app starts and opens one file, data/runtime/agent-board.mv.db.','Every post, run, agent and budget record is a row in that file.','You stop the app, and the file keeps everything for next time.'],
     why:'H2 runs in PostgreSQL mode, so the board’s SQL also works on PostgreSQL.',
     next:'At scale: PostgreSQL. Moving means changing one setting, DB_URL, not rewriting queries.',
-    no:{scale:'H2 is a file that one running app opens. Copies of the app on different machines cannot share one file, so each copy would see different data.'}},
+    no:{scale:'H2 is a file on one computer. A second server cannot open that file, so each server would see different data.'}},
   memQueue:{name:'In-memory job queue',kind:'queue',status:'built',
     lead:'A queue is a waiting line for work. This queue lives inside the app’s memory.',
     ex:'Suppose a workflow starts three agents, but only two workers are free:',
     steps:['The coordinator puts the three runs in the queue.','Two workers each take a run.','The third run waits until a worker finishes.'],
     why:'Each run is also saved as a row in the database. If the app restarts, the board puts the waiting runs back in the queue. There is nothing else to install.',
     next:'At scale: the database queue (BOARD_QUEUE=database), which is already built.',
-    no:{scale:'This queue lives in one app’s memory. A run queued on copy A is invisible to a worker on copy B, so that worker would sit idle.'}},
+    no:{scale:'This queue exists only inside one app’s memory. A worker on another server cannot see the runs waiting there.'}},
   workerPool:{name:'Bounded worker pool',kind:'service',status:'built',
-    lead:'A worker is a thread that runs one agent at a time. The pool has a fixed number of workers: four.',
-    ex:'Suppose ten agents are queued:',
-    steps:['Four workers each take one run.','The other six runs wait in the queue.','When a worker finishes, it takes the next run.'],
-    why:'This works like executors in Jenkins. Memory stays bounded because an agent that is not running is only a database row, not a thread, so 10 or 10,000 registered agents cost the same memory.',
-    next:'At scale: workers run as separate processes, and each claimed run has a lease.'},
+    lead:'A worker is a thread that runs one agent at a time. The board has exactly four workers, so memory use has a fixed ceiling.',
+    ex:'Suppose ten agents are waiting:',
+    steps:['Four workers each take one agent’s run.','The other six runs wait in the queue.','When a worker finishes, the worker takes the next run.'],
+    why:'Only those four workers can be running an agent at any moment. An agent that is not running is just a row in the database, not a thread or a program in memory. So registering 10,000 agents costs disk space, not memory. This works like executors in Jenkins.',
+    next:'At scale: workers run on their own servers, and each worker holds a lease on its run.'},
   springAi:{name:'Spring AI tool loop',kind:'service',status:'built',
     lead:'The tool loop is the conversation between the board and the model while an agent works. Spring AI is the library that talks to OpenAI.',
     ex:'Suppose an agent must summarise the latest commit:',
@@ -296,51 +401,51 @@ const C={
 
   // ---- Round 2 answers ----
   postgres:{name:'PostgreSQL 16',kind:'db',status:'built',
-    lead:'PostgreSQL is a database server. Several copies of the app can connect to the same PostgreSQL over the network.',
-    ex:'Why that matters: suppose the load balancer sends your new post to copy A, and your next page load to copy B:',
-    steps:['Copy A saves the post in PostgreSQL.','Copy B reads the feed from the same PostgreSQL.','You see your post, whichever copy answered.'],
-    why:'The budget stays correct too: the guard reserves money with one UPDATE that PostgreSQL applies as a single step, so two copies cannot both spend the last dollar. The board already includes this setup (docker-compose.scale.yml), but it has not been run in this environment.',
+    lead:'PostgreSQL is a database server. Apps on several servers can all connect to the same PostgreSQL.',
+    ex:'Suppose the board runs on server 1 and server 2, and you post an update:',
+    steps:['Server 1 receives your post and saves it in PostgreSQL.','Your next page load happens to go to server 2.','Server 2 reads the feed from the same PostgreSQL, so you see your post.'],
+    why:'The budget stays correct too: the budget guard reserves money with one UPDATE that PostgreSQL applies as a single step, so two servers cannot both spend the last dollar. The board already includes this setup (docker-compose.scale.yml), but it has not been run in this environment.',
     no:{light:'PostgreSQL is the right database for a server. On a laptop it is one more program to install and keep running, and H2 gives the same SQL with nothing to install.'}},
   dbQueue:{name:'Database queue',kind:'queue',status:'built',
-    lead:'The database queue keeps waiting runs as rows in the runs table, so every copy of the app sees the same queue.',
-    ex:'Suppose two workers on different machines look for work at the same moment:',
-    steps:['Each worker sends: UPDATE runs SET status = \'running\' WHERE id = 7 AND status = \'queued\'.','The database applies one UPDATE first, so that worker gets run 7.','The other UPDATE finds the status already “running”, changes nothing, and that worker looks for the next run.'],
-    why:'So a run never runs twice. This is built today: set BOARD_QUEUE=database. A broker such as Kafka comes only when the database is measured to be the bottleneck.'},
+    lead:'The database queue keeps waiting runs in the database instead of in the app’s memory. You turn it on with BOARD_QUEUE=database.',
+    ex:'Suppose the board runs on two servers, and both servers’ workers look for work at the same moment:',
+    steps:['Both workers try to mark run 7 as “running”. The database allows the change only if run 7 is still “queued”.','The database makes the first change, so that worker gets run 7.','For the second worker, run 7 is no longer “queued”, so the change does nothing, and that worker looks for another run.'],
+    why:'So a run never runs twice, even with workers on different servers. The default, BOARD_QUEUE=memory, is a Java list inside one app that only that app can see. A broker such as Kafka is needed only when the database becomes too slow, and that must be measured first.'},
   leasedWorkers:{name:'Workers with run leases',kind:'service',status:'designed',
-    lead:'Workers run as their own processes, so you can add workers without adding web servers. A lease is a claim with an expiry time.',
-    ex:'Suppose a worker crashes while running an agent:',
-    steps:['When the worker claimed the run, it got a lease and kept renewing it.','The worker crashes, so the lease is not renewed and expires.','Another worker sees the expired lease and recovers the run by an explicit rule.'],
-    why:'The rule never silently resends a model request, because OpenAI may already have charged for the first one.'},
+    lead:'Workers can run on their own servers. Each worker holds a lease, a claim that expires, on the run it is working on.',
+    ex:'Suppose a worker crashes in the middle of a run:',
+    steps:['When the worker took the run, the worker claimed it until a set time, and kept extending that time.','The worker crashes, so the claim expires.','Another worker sees the expired claim and handles the run by a clear rule.'],
+    why:'The rule never silently resends a request to OpenAI, because OpenAI may already have charged for the first one.'},
   pgFts:{name:'PostgreSQL full-text search',kind:'search',status:'designed',
     lead:'Full-text search keeps an index of the words in every post, like the index at the back of a book.',
     ex:'Suppose there are five million posts and you search for “rollback”:',
     steps:['Without an index, the database reads all five million posts.','With a tsvector column and a GIN index, the database looks up “rollback” and goes straight to the matching posts.'],
     why:'pg_trgm does the same for parts of words. When reads grow, a read replica (a read-only copy of the database) answers searches. Only PostRepository changes.'},
   dbRegistry:{name:'Agents stored in the database',kind:'service',status:'designed',
-    lead:'At scale, agents and skills live in the shared database instead of in files on each machine.',
-    ex:'Suppose copy A and copy B of the app run on different machines:',
-    steps:['You create an agent through copy A, and copy A saves it in the database.','Copy B reads the same database, so copy B sees the agent too.','Each run records the version of the agent it used, so a later edit does not change a run in progress.'],
-    why:'YAML files only seed the database. Today each machine reads its own folder, which is why this must change before running several copies.'},
+    lead:'When the board runs on several servers, agents must live in the shared database, not in files on one server.',
+    ex:'Suppose you create an agent, and your request goes to server 1:',
+    steps:['Server 1 saves the agent in the database.','Server 2 reads the same database, so server 2 knows the agent too.','Each run records which version of the agent it used, so a later edit does not change a run in progress.'],
+    why:'Today the app reads agents from a folder on its own computer. A second server would not see that folder.'},
   leaseCoordinator:{name:'Coordinator with a DB lease',kind:'service',status:'designed',
-    lead:'With several copies of the app, exactly one copy must advance each workflow. Otherwise two copies could start the same agent twice.',
-    ex:'Suppose copy A owns workflow 42:',
-    steps:['Copy A writes a lease row: workflow 42, owner A, expiring in 30 seconds (an example value).','Copy A renews the lease every few seconds while it works.','Copy A crashes. The lease expires, and copy B takes over workflow 42.'],
-    why:'Today one process coordinates every workflow, so no lease is needed yet.'},
+    lead:'A lease is a claim that expires, like booking a meeting room that is released if you do not show up. When the board runs on several servers, a lease decides which one server moves each workflow forward.',
+    ex:'Suppose server 1 is running workflow 42:',
+    steps:['Server 1 writes in the database: “workflow 42 belongs to server 1 until 10:00:30.”','Every few seconds, server 1 moves that time forward.','Server 1 crashes and stops moving the time. At 10:00:30 the claim expires.','Server 2 sees the expired claim, takes workflow 42, and continues it.'],
+    why:'Without a lease, a crashed server’s workflow would wait forever. And if two servers moved one workflow forward at once, an agent could run twice. Today one app runs every workflow, so no lease is needed yet.'},
   lb:{name:'Load balancer',kind:'lb',status:'designed',
-    lead:'A load balancer is the single address people use. It forwards each request to one of several copies of the app.',
-    ex:'Suppose three copies of the app run:',
-    steps:['You open the board, and the load balancer forwards the request to copy 2.','Copy 2 crashes, so the load balancer stops sending requests to it.','Your next request goes to copy 1 or copy 3.'],
-    why:'It also handles HTTPS. nginx, HAProxy or the cloud provider’s balancer can do this. On-prem, the company’s reverse proxy usually already does this job.'},
+    lead:'A load balancer is the one address people use. It forwards each request to one of the servers running the board.',
+    ex:'Suppose the board runs on three servers:',
+    steps:['You open the board, and the load balancer sends your request to server 2.','Server 2 crashes, so the load balancer stops sending requests there.','Your next request goes to server 1 or server 3.'],
+    why:'The load balancer also handles HTTPS. On-prem, the company’s existing reverse proxy can usually do this job.'},
   replicas:{name:'Stateless API replicas',kind:'service',status:'designed',
-    lead:'Stateless means a copy of the app keeps nothing about you in memory between requests. That is what lets any copy answer any request.',
-    ex:'Suppose your first request goes to copy 1 and your second to copy 2:',
-    steps:['Each request carries your token.','Each copy checks the token itself and reads data from the shared database.','So copy 2 needs nothing that copy 1 remembered.'],
-    why:'Not supported yet: the coordinator and the agent definitions still live in one process and its files, and they must move into the database first.'},
+    lead:'“Stateless” means a server remembers nothing about you between requests. So any server can answer any request.',
+    ex:'Suppose your first request goes to server 1 and your second to server 2:',
+    steps:['Each request carries your token.','Each server checks the token itself and reads data from the shared database.','So server 2 needs nothing that server 1 remembered.'],
+    why:'Not supported yet: the coordinator and the agents must move into the database first.'},
   outbox:{name:'Transactional outbox',kind:'db',status:'designed',
-    lead:'The outbox keeps a post and its notification in step: no webhook for a post that was not saved, and no saved post without its webhook.',
-    ex:'Suppose an agent finishes its work:',
-    steps:['In one database transaction, the board saves the post, the run’s final state and an outbox row (“send the webhook for post 81”).','A separate publisher reads the outbox row and sends the webhook.','The publisher marks the row as sent. If the publisher crashes first, it retries, and the receiver can ignore the duplicate by its post id.'],
-    why:'Because the post and the outbox row are saved together, either both exist or neither does.'},
+    lead:'The outbox makes sure the board sends a webhook for every saved post, even if the app crashes in between.',
+    ex:'Suppose an agent finishes, and the board must save the agent’s post and notify another system:',
+    steps:['The board saves the post and a note, “send a webhook for post 81”, together. Either both are saved or neither is.','A sender reads the notes that are not yet sent, and sends each webhook.','If the app crashes after saving but before sending, the note is still in the database. After the restart, the sender sends that webhook.'],
+    why:'Without the outbox, the board could save the post, crash, and never tell the other system.'},
   objectStore:{name:'Object storage',kind:'db',status:'designed',
     lead:'Object storage (for example Amazon S3 or MinIO) keeps large files cheaply, outside the database.',
     ex:'Suppose each run’s evidence report is 200 KB and the board does a million runs:',
@@ -348,6 +453,23 @@ const C={
     why:'The board already addresses reports by run id, so moving them is a contained change.'},
 
   // ---- wrong options ----
+  userAccounts:{name:'User accounts with passwords',kind:'guard',
+    no:{light:'One person on one laptop needs no login. Accounts and passwords would add a sign-in step without protecting anything.',
+        scale:'Not part of this design yet. Tokens with permissions cover changes today. Per-person accounts, or the company’s single sign-on, are a later step.'}},
+  noAuth:{name:'No security at all',kind:'guard',
+    no:{light:'Even on a laptop, an open board is risky: any website you visit could send requests to http://127.0.0.1:8087 in the background and start agents that spend your OpenAI budget. That is why the board trusts only requests from the same computer and refuses requests from other websites.',
+        scale:'Anyone on the network could change agents, read connector settings and spend the OpenAI budget.'}},
+  authToken:{name:'Token check (BOARD_AUTH=token)',kind:'guard',status:'built',
+    lead:'When people share the board over a network, every change needs a token. Reading the feed stays open.',
+    ex:'Suppose an admin sets up a shared board:',
+    steps:['The admin starts the board with BOARD_AUTH=token. The board uses BOARD_ADMIN_TOKEN, or creates a token in data/runtime/secrets/initial-admin-token.','A person pastes that token into Connect on the page.','Every request that changes something carries the token, and the server checks it against the shared database.'],
+    why:'The board stores only a fingerprint (SHA-256 hash) of each token, never the token itself. Because tokens are checked against the shared database, any server can check any request. An agent’s own token can post only as that agent. BOARD_AUTH=token is the default everywhere except the laptop start and docker-compose.yml, which only listens on this computer.'},
+  authOpen:{name:'Same-computer access',kind:'guard',status:'built',
+    lead:'The security filter decides who may change the board. On a laptop, the board trusts requests from the same computer, so you need no token.',
+    ex:'Suppose you run the board on your laptop with ./scripts/start-local.sh:',
+    steps:['The script starts the board with BOARD_AUTH=open.','You open http://127.0.0.1:8087 and press Run. The request comes from your own computer, so the filter lets it through.','A request from another computer, or from another website open in your browser, is refused.'],
+    why:'You use the board alone on your laptop, so a token would add a step without adding safety. Set BOARD_AUTH=token to require a token even on a laptop.',
+    next:'At scale: every change needs a token (BOARD_AUTH=token).'},
   kafka:{name:'Kafka broker',kind:'queue',
     no:{light:'Kafka is a separate system for moving very large streams of messages between services. The board starts at most a few dozen runs a minute inside one app, so Kafka would add a cluster to run without solving a problem.',
         scale:'Not yet. Kafka helps when the database cannot keep up with the queue. Until a measurement shows that, the database queue is enough, and a run and its queue entry change in one transaction.'}},
@@ -369,7 +491,7 @@ const C={
     no:{any:'A cron scheduler starts work at set times. On this board, people start workflows, and agents run in the order the graph sets, so the board removed its unused scheduler.'}},
   k8s:{name:'Kubernetes',kind:'external',
     no:{light:'Kubernetes runs and restarts many containers across a cluster of machines. The board is one jar in one container, so Kubernetes would add a cluster to operate without meeting a requirement.',
-        scale:'Kubernetes could run the copies, but no requirement needs it. Any container platform, or one machine behind a load balancer, also works.'}},
+        scale:'Kubernetes could run the servers, but no requirement needs it. Any container platform, or one machine behind a load balancer, also works.'}},
 };
 /* Which explanation a given (fixed) box shows, per round. */
 const FIXED_INFO={light:{ui:'ui',ext:'hooks',api:'api',mcpsrv:'mcpServers',openai:'openai'},scale:{ui:'ui',ext:'hooks',runtime:'runtimeScale',openai:'outside'}};
@@ -378,52 +500,54 @@ const FIXED_INFO={light:{ui:'ui',ext:'hooks',api:'api',mcpsrv:'mcpServers',opena
 const W=150,H=54;
 const ROUNDS={
   light:{
-    title:'Round 1 · Lightweight',lede:'One Spring Boot jar on a laptop, with no other service to install. Pick what each gap needs.',
+    title:'Round 1 · Lightweight',lede:'One app on one laptop, with no other service to install. Pick what each gap needs.',
     stage:'Agent Board as it runs today',
     fixed:[
       {id:'ui',name:'Browser UI',meta:'feed · agents · workflows',kind:'client',x:20,y:80},
       {id:'ext',name:'Assistants · webhooks',meta:'MCP endpoint, signed hooks',kind:'client',x:20,y:200},
-      {id:'api',name:'REST API',meta:'security filter · one jar',kind:'service',x:200,y:140},
-      {id:'mcpsrv',name:'MCP servers',meta:'GitHub · web · Notion',kind:'external',x:580,y:480},
-      {id:'openai',name:'OpenAI',meta:'chat models',kind:'external',x:770,y:480},
+      {id:'api',name:'REST API',meta:'one jar',kind:'service',x:380,y:140},
+      {id:'mcpsrv',name:'MCP servers',meta:'GitHub · web · Notion',kind:'external',x:740,y:480},
+      {id:'openai',name:'OpenAI',meta:'chat models',kind:'external',x:920,y:480},
     ],
     slots:[
-      {id:'reg',x:390,y:30,answer:'registry',req:'Agents and skills are data: add one without changing code',hint:'Something that reads agent definitions from files and forms.'},
-      {id:'coord',x:390,y:140,answer:'coordinator',req:'Chain agents: a receiver waits for all of its inputs',hint:'It walks a graph and releases an agent when its inputs are done.'},
-      {id:'search',x:390,y:250,answer:'sqlSearch',req:'Search and filter the feed',hint:'The simplest thing that searches text you already store.'},
-      {id:'queue',x:580,y:140,answer:'memQueue',req:'Absorb bursts of work without running a second system',hint:'It should live inside the same process.'},
-      {id:'workers',x:770,y:140,answer:'workerPool',req:'Run many agents with bounded memory and CPU',hint:'A fixed number of executors, like Jenkins.'},
-      {id:'runtime',x:770,y:260,answer:'springAi',req:'Call the model with tools, and show exactly why a run failed',hint:'The board, not the model, should execute each tool call.'},
-      {id:'conn',x:580,y:370,answer:'mcp',req:'Read GitHub, the web or Notion without code changes',hint:'One protocol for every source.'},
-      {id:'budget',x:770,y:370,answer:'budgetGuard',req:'Never spend more than the OpenAI budget',hint:'Reserve before you spend.'},
-      {id:'db',x:200,y:370,answer:'h2',req:'Keep posts, runs, agents and spending with zero setup',hint:'A database that runs inside the app.'},
+      {id:'auth',x:200,y:140,answer:'authOpen',req:'Use the board on your own laptop without a token, safely',hint:'Trust only requests that come from this same computer.'},
+      {id:'reg',x:560,y:30,answer:'registry',req:'Agents and skills are data: add one without changing code',hint:'Something that reads agent definitions from files and forms.'},
+      {id:'coord',x:560,y:140,answer:'coordinator',req:'Chain agents: a receiver waits for all of its inputs',hint:'It walks a graph and releases an agent when its inputs are done.'},
+      {id:'search',x:560,y:250,answer:'sqlSearch',req:'Search and filter the feed',hint:'The simplest thing that searches text you already store.'},
+      {id:'queue',x:740,y:140,answer:'memQueue',req:'Absorb bursts of work without running a second system',hint:'It should live inside the same app.'},
+      {id:'workers',x:920,y:140,answer:'workerPool',req:'Run many agents with bounded memory and CPU',hint:'A fixed number of executors, like Jenkins.'},
+      {id:'runtime',x:920,y:260,answer:'springAi',req:'Call the model with tools, and show exactly why a run failed',hint:'The board, not the model, should execute each tool call.'},
+      {id:'conn',x:740,y:370,answer:'mcp',req:'Read GitHub, the web or Notion without code changes',hint:'One protocol for every source.'},
+      {id:'budget',x:920,y:370,answer:'budgetGuard',req:'Never spend more than the OpenAI budget',hint:'Reserve before you spend.'},
+      {id:'db',x:380,y:370,answer:'h2',req:'Keep posts, runs, agents and spending with zero setup',hint:'A database that runs inside the app.'},
     ],
-    edges:[['ui','api'],['ext','api'],['api','reg'],['api','coord'],['api','search','feed'],['coord','queue','runs'],['queue','workers'],['workers','runtime'],['runtime','conn','tools'],['runtime','budget'],['conn','mcpsrv'],['budget','openai'],['api','db','posts · runs · agents',1],['search','db','',1]],
-    palette:['postgres','registry','kafka','coordinator','memQueue','redis','workerPool','perAgentService','springAi','selfRunning','mcp','cron','budgetGuard','elastic','sqlSearch','h2'],
+    edges:[['ui','auth'],['ext','auth'],['auth','api'],['api','reg'],['api','coord'],['api','search','feed'],['coord','queue','runs'],['queue','workers'],['workers','runtime'],['runtime','conn','tools'],['runtime','budget'],['conn','mcpsrv'],['budget','openai'],['api','db','posts · runs · agents',1],['search','db','',1]],
+    palette:['postgres','registry','noAuth','kafka','coordinator','memQueue','userAccounts','redis','workerPool','perAgentService','springAi','selfRunning','mcp','cron','budgetGuard','authOpen','elastic','sqlSearch','h2'],
   },
   scale:{
-    title:'Round 2 · At scale',lede:'Several copies of the app behind a load balancer, sharing one database. Most of these are designed, not built: the honest next steps.',
+    title:'Round 2 · At scale',lede:'The same app running on several servers behind one address, sharing one database. Most of this is designed, not built yet.',
     stage:'Agent Board when it outgrows one machine',
     fixed:[
       {id:'ui',name:'Browser UI',meta:'feed · agents · workflows',kind:'client',x:20,y:80},
       {id:'ext',name:'Assistants · webhooks',meta:'MCP endpoint, signed hooks',kind:'client',x:20,y:200},
-      {id:'runtime',name:'Spring AI runtime',meta:'+ budget guard · MCP',kind:'service',x:770,y:380},
-      {id:'openai',name:'OpenAI · MCP servers',meta:'outside the network',kind:'external',x:770,y:480},
+      {id:'runtime',name:'Spring AI runtime',meta:'+ budget guard · MCP',kind:'service',x:920,y:380},
+      {id:'openai',name:'OpenAI · MCP servers',meta:'outside the network',kind:'external',x:920,y:480},
     ],
     slots:[
-      {id:'lb',x:200,y:140,answer:'lb',req:'Spread traffic across several copies of the app',hint:'It sits in front of everything and terminates TLS.'},
-      {id:'api',x:390,y:140,answer:'replicas',req:'Any copy of the app can serve any request',hint:'Keep no session state in the process.'},
-      {id:'reg',x:390,y:30,answer:'dbRegistry',req:'Every copy sees the same agents and skills',hint:'Files on one host are not shared.'},
-      {id:'coord',x:580,y:140,answer:'leaseCoordinator',req:'Exactly one owner advances each workflow',hint:'Ownership that expires if the owner dies.'},
-      {id:'queue',x:770,y:140,answer:'dbQueue',req:'Hand work to workers on any machine, safely',hint:'You already have a database every copy can reach.'},
-      {id:'workers',x:770,y:260,answer:'leasedWorkers',req:'Scale workers separately and recover stuck runs',hint:'A claim that times out.'},
-      {id:'search',x:200,y:300,answer:'pgFts',req:'Feed search that stays fast with millions of posts',hint:'Stay inside the database you already run.'},
-      {id:'db',x:390,y:320,answer:'postgres',req:'One database that every copy shares',hint:'The same SQL as today, as a server.'},
-      {id:'outbox',x:580,y:320,answer:'outbox',req:'Publish posts and run results exactly once',hint:'Write the message in the same transaction as the data.'},
-      {id:'store',x:580,y:450,answer:'objectStore',req:'Keep large evidence reports cheaply',hint:'Blobs addressed by run id do not belong in rows.'},
+      {id:'lb',x:200,y:140,answer:'lb',req:'Run the board on several servers behind one address',hint:'It sits in front of the servers and handles HTTPS.'},
+      {id:'auth',x:380,y:140,answer:'authToken',req:'Only people with a token can change a shared board',hint:'Every request carries proof of who sent it.'},
+      {id:'api',x:560,y:140,answer:'replicas',req:'Any server can answer any request',hint:'The server keeps nothing about you between requests.'},
+      {id:'reg',x:560,y:30,answer:'dbRegistry',req:'Every server sees the same agents and skills',hint:'Files on one server are not shared.'},
+      {id:'coord',x:740,y:140,answer:'leaseCoordinator',req:'Exactly one server moves each workflow forward',hint:'A claim that expires if its server dies.'},
+      {id:'queue',x:920,y:140,answer:'dbQueue',req:'Hand work to workers on any server, safely',hint:'You already have a database every server can reach.'},
+      {id:'workers',x:920,y:260,answer:'leasedWorkers',req:'Add workers separately and recover stuck runs',hint:'A claim that times out.'},
+      {id:'search',x:380,y:300,answer:'pgFts',req:'Feed search that stays fast with millions of posts',hint:'Stay inside the database you already run.'},
+      {id:'db',x:560,y:320,answer:'postgres',req:'One database that every server shares',hint:'The same SQL as today, as a database server.'},
+      {id:'outbox',x:740,y:320,answer:'outbox',req:'Never lose the webhook for a saved post',hint:'Save the post and the message together.'},
+      {id:'store',x:740,y:440,answer:'objectStore',req:'Keep large evidence reports cheaply',hint:'Large files addressed by run id do not belong in rows.'},
     ],
-    edges:[['ui','lb'],['ext','lb'],['lb','api'],['api','reg'],['api','coord'],['api','search','feed'],['coord','queue','runs'],['queue','workers'],['workers','runtime'],['runtime','openai'],['workers','outbox','posts'],['workers','store'],['coord','db','',1],['search','db','',1],['outbox','db','',1]],
-    palette:['h2','lb','kafka','replicas','memQueue','dbRegistry','redis','leaseCoordinator','dbQueue','k8s','leasedWorkers','elastic','pgFts','postgres','outbox','objectStore'],
+    edges:[['ui','lb'],['ext','lb'],['lb','auth'],['auth','api'],['api','reg'],['api','coord'],['api','search','feed'],['coord','queue','runs'],['queue','workers'],['workers','runtime'],['runtime','openai'],['workers','outbox','posts'],['workers','store'],['coord','db','',1],['search','db','',1],['outbox','db','',1]],
+    palette:['h2','lb','kafka','replicas','noAuth','memQueue','dbRegistry','redis','leaseCoordinator','authToken','dbQueue','k8s','userAccounts','leasedWorkers','elastic','pgFts','postgres','outbox','objectStore'],
   },
 };
 
@@ -431,10 +555,10 @@ const ROUNDS={
 /* --------------------------------------------------------------------------------------------------------- */
 const $=id=>document.getElementById(id);
 const NS='http://www.w3.org/2000/svg';
-const store=(()=>{const k='architecture-lab-v2';try{localStorage.getItem(k);return{get:()=>{try{return JSON.parse(localStorage.getItem(k)||'null');}catch{return null;}},set:v=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}};}catch{return{get:()=>null,set:()=>{}};}})();
+const store=(()=>{const k='architecture-lab-v3';try{localStorage.getItem(k);return{get:()=>{try{return JSON.parse(localStorage.getItem(k)||'null');}catch{return null;}},set:v=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}};}catch{return{get:()=>null,set:()=>{}};}})();
 function fresh(){return{placed:{},missed:{},hints:{},score:0,misses:0,started:null,finished:null};}
 let S=store.get()||{};
-S.view=S.view||'light';S.sol=S.sol||'light';S.light=S.light||fresh();S.scale=S.scale||fresh();
+S.view=S.view||'intro';S.slide=S.slide||0;S.sol=S.sol||'light';S.light=S.light||fresh();S.scale=S.scale||fresh();
 let selected=null,activeSlot=null,tipTimer=null;
 const game=()=>S.view==='solution'?S.sol:S.view;            // the round on screen
 const R=()=>ROUNDS[game()],P=()=>S[game()];
@@ -486,7 +610,9 @@ function drawDiagram(svg,key,placed,solution){
 /* ---- game ---------------------------------------------------------------------------------------------------- */
 function render(){
   document.querySelectorAll('[data-view]').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.view===S.view)));
-  const sol=S.view==='solution';$('game').hidden=sol;$('solution').hidden=!sol;$('stats').hidden=sol;
+  const sol=S.view==='solution',intro=S.view==='intro';$('intro').hidden=!intro;$('game').hidden=sol||intro;$('solution').hidden=!sol;$('stats').hidden=sol||intro;
+  if(!intro)stopDemo();
+  if(intro){renderIntro();return;}
   if(sol){renderSolution();return;}
   const r=R(),p=P();$('title').textContent=r.title;$('lede').textContent=r.lede;$('stage-title').textContent=r.stage;
   drawDiagram($('canvas'),S.view,p.placed,false);attachFixedTips($('canvas'),S.view);
@@ -581,8 +707,8 @@ function startDrag(e,id,chip){
 function showDone(){
   const r=R(),p=P(),o=h('div','overlay'),card=h('div','done-card'),secs=Math.round((p.finished-(p.started||p.finished))/1000),max=r.slots.length*10;
   card.append(h('span','eyebrow',(S.view==='light'?'Round 1':'Round 2')+' complete'),h('h3','',`Score ${p.score} / ${max} · ${p.misses} miss${p.misses===1?'':'es'} · ${fmt(secs)}`));
-  if(S.view==='light')card.append(h('p','','One jar, one file database, an in-process queue and a bounded worker pool: everything runs on a laptop with no other service, and every part is built.'),h('p','','The hard part of scaling is not the database. It is several copies of the app agreeing on who coordinates each workflow, who owns each run and who publishes each post.'));
-  else card.append(h('p','','Several copies of the app behind a load balancer, one shared PostgreSQL, and leases and an outbox so the copies agree. Most of this is designed, not built: add each part when measured load needs it.'));
+  if(S.view==='light')card.append(h('p','','One app on one laptop: a file database, an in-memory queue and four workers, behind a filter that trusts only this computer. Every part is built and runs today.'),h('p','','The hard part of scaling is not the database. It is several servers agreeing on who moves each workflow forward, who runs each agent and who sends each webhook.'));
+  else card.append(h('p','','The same app on several servers behind a load balancer, with a token on every change, one shared PostgreSQL, and leases and an outbox so the servers agree. Most of this is designed, not built: add each part when measured load needs it.'));
   const act=h('div','tools'),next=h('button','button primary',S.view==='light'?'Now scale it →':'See the full solution →');next.type='button';next.onclick=()=>S.view==='light'?setView('scale'):showSolution('scale');
   const look=h('button','button','Look at my diagram');look.type='button';look.onclick=()=>o.remove();act.append(next,look);card.append(act);o.append(card);$('board').append(o);
 }
@@ -618,6 +744,49 @@ function showSolution(key){S.sol=key;setView('solution');}
 function setView(v){S.view=v;selected=null;activeSlot=null;hideTip(true);$('board').querySelector('.overlay')?.remove();save();render();window.scrollTo({top:0});}
 
 document.querySelectorAll('[data-view]').forEach(t=>t.addEventListener('click',()=>{if(t.dataset.view==='solution')showSolution(S.view==='scale'?'scale':S.sol);else setView(t.dataset.view);}));
+/* ---- Start here: slides and the animated sample dashboard ------------------------------------------------------ */
+const SLIDES=4;
+function renderIntro(){
+  const i=S.slide||0;$('title').textContent='Start here';$('lede').textContent='What the board is for, what it looks like, and the words the lab uses.';
+  document.querySelectorAll('[data-slide]').forEach(x=>x.hidden=Number(x.dataset.slide)!==i);
+  $('intro-back').disabled=i===0;$('intro-next').textContent=i===SLIDES-1?'Start Round 1 →':'Next →';
+  const dots=$('intro-dots');dots.replaceChildren();for(let k=0;k<SLIDES;k++){const d=h('button');d.type='button';d.setAttribute('aria-label','Slide '+(k+1));d.setAttribute('aria-current',String(k===i));d.onclick=()=>{S.slide=k;save();renderIntro();};dots.append(d);}
+  if(i===1)playDemo();else stopDemo();
+}
+$('intro-back').onclick=()=>{S.slide=Math.max(0,(S.slide||0)-1);save();renderIntro();};
+$('intro-next').onclick=()=>{if((S.slide||0)>=SLIDES-1){setView('light');return;}S.slide=(S.slide||0)+1;save();renderIntro();};
+$('replay').onclick=()=>playDemo();
+
+const DEMO={nodes:[
+  {id:'reader',name:'Ticket Reader',x:16,y:126},{id:'dev',name:'Developer',x:150,y:126},
+  {id:'review',name:'Reviewer',x:284,y:56},{id:'test',name:'Tester',x:284,y:196},{id:'notes',name:'Release Notes',x:418,y:126}],
+  edges:[['reader','dev'],['dev','review'],['dev','test'],['review','notes'],['test','notes']],
+  posts:{reader:'PAY-142: refunds fail for partly captured payments. Two files are likely involved.',
+    dev:'Drafted a change to RefundCalculator: refund at most the amount that was captured.',
+    review:'The draft looks right. One risk: rounding in other currencies. Evidence: 2 files.',
+    test:'Proposed 3 tests: a full capture, a partial capture and no capture.',
+    notes:'Fixed refunds for partly captured payments. Waited for both Reviewer and Tester.'}};
+const DW=126,DH=46;let demoTimers=[];
+function stopDemo(){demoTimers.forEach(clearTimeout);demoTimers=[];}
+function playDemo(){
+  stopDemo();const svg=$('demo-flow');svg.replaceChildren();$('demo-posts').replaceChildren();
+  const defs=el('defs'),mk=el('marker',{id:'demo-arrow',viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'7',markerHeight:'7',orient:'auto-start-reverse'});mk.append(el('path',{d:'M0,0 L10,5 L0,10 z',fill:'#a9b5a1'}));defs.append(mk);svg.append(defs);
+  const at=new Map(DEMO.nodes.map(n=>[n.id,n])),edges={},nodes={};
+  for(const[a,b]of DEMO.edges){const p=at.get(a),q=at.get(b),x1=p.x+DW,y1=p.y+DH/2,x2=q.x,y2=q.y+DH/2,mx=(x1+x2)/2;
+    const e=el('path',{d:`M${x1},${y1} H${mx} V${y2} H${x2}`,class:'dedge','marker-end':'url(#demo-arrow)'});svg.append(e);edges[a+'>'+b]=e;}
+  for(const n of DEMO.nodes){const g=el('g',{class:'dnode',transform:`translate(${n.x},${n.y})`});
+    g.append(el('rect',{class:'card',width:DW,height:DH,rx:10}),el('text',{x:12,y:20},n.name),el('circle',{class:'pulse',cx:14,cy:32,r:3.5,fill:'currentColor'}),el('text',{x:22,y:35,class:'st'},'waiting'));
+    g.querySelector('.pulse').style.color='#c5cbbd';svg.append(g);nodes[n.id]=g;}
+  const set=(id,state)=>{const g=nodes[id];g.setAttribute('class','dnode '+state);g.querySelector('.st').textContent=state==='running'?'running…':state;g.querySelector('.pulse').style.color=state==='done'?'#3f9a66':state==='running'?'#3986e8':'#c5cbbd';};
+  const post=id=>{const p=h('div','dpost'),head=h('div');head.append(h('b','',DEMO.nodes.find(n=>n.id===id).name),h('small','','just now'));p.append(head,h('p','',DEMO.posts[id]));$('demo-posts').prepend(p);
+    for(const k of Object.keys(edges))if(k.startsWith(id+'>'))edges[k].setAttribute('class','dedge done');};
+  // Reviewer and Tester run at the same time; Release Notes waits for both.
+  const plan=[[600,()=>set('reader','running')],[1900,()=>{set('reader','done');post('reader');}],[2400,()=>set('dev','running')],[3900,()=>{set('dev','done');post('dev');}],
+    [4400,()=>{set('review','running');set('test','running');}],[5700,()=>{set('test','done');post('test');}],[6900,()=>{set('review','done');post('review');}],
+    [7400,()=>set('notes','running')],[8700,()=>{set('notes','done');post('notes');}],[12500,()=>playDemo()]];
+  for(const[t,f]of plan)demoTimers.push(setTimeout(f,t));
+}
+
 document.querySelectorAll('[data-sol]').forEach(t=>t.addEventListener('click',()=>{S.sol=t.dataset.sol;save();render();}));
 $('see-solution').onclick=()=>showSolution(S.view);
 $('hint').onclick=()=>{const r=R(),p=P(),s=r.slots.find(x=>x.id===activeSlot&&!p.placed[x.id])||r.slots.find(x=>!p.placed[x.id]);if(!s)return;tick();activeSlot=s.id;
@@ -625,7 +794,7 @@ $('hint').onclick=()=>{const r=R(),p=P(),s=r.slots.find(x=>x.id===activeSlot&&!p
   const g=$('canvas').querySelector(`[data-slot="${s.id}"]`);if(g)showTip(g,{kind:'',title:'Hint for gap '+(r.slots.indexOf(s)+1),req:s.req,lines:[[s.hint]]},true);};
 $('reset').onclick=()=>{S[S.view]=fresh();setView(S.view);};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){hideTip(true);if(S.view!=='solution'){selected=null;renderPalette();renderHint();}}});
-setInterval(()=>{if(S.view==='solution')return;const p=P();const s=p.started?Math.round(((p.finished||Date.now())-p.started)/1000):0;$('clock').textContent=fmt(s);$('score').textContent=p.score;$('miss').textContent=p.misses;},500);
+setInterval(()=>{if(S.view!=='light'&&S.view!=='scale')return;const p=P();const s=p.started?Math.round(((p.finished||Date.now())-p.started)/1000):0;$('clock').textContent=fmt(s);$('score').textContent=p.score;$('miss').textContent=p.misses;},500);
 render();
 </script>
 </body>
