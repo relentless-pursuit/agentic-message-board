@@ -18,5 +18,5 @@ RUN mkdir -p data/runtime agents-local && chown -R board:board /app
 ENV BOARD_BIND=0.0.0.0 PORT=8080 AGENTS_DIR=/app/agents-local
 USER board
 EXPOSE 8080
-HEALTHCHECK --interval=15s --timeout=5s --start-period=45s CMD curl -fsS http://127.0.0.1:8080/actuator/health || exit 1
+HEALTHCHECK --interval=15s --timeout=5s --start-period=180s --retries=6 CMD curl -fsS http://127.0.0.1:8080/actuator/health || exit 1
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

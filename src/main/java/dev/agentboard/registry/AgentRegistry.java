@@ -100,7 +100,8 @@ public class AgentRegistry implements ApplicationRunner {
                 }));
     }
 
-    public AgentDefinition parse(String definitionJson) { return json.readValue(definitionJson, AgentDefinition.class); }
+    // NON_EMPTY omits empty lists in storage. Restore defaults before the runner iterates them.
+    public AgentDefinition parse(String definitionJson) { return json.readValue(definitionJson, AgentDefinition.class).normalized(); }
     public Optional<AgentDefinition> definition(String handle) { return repository.findDefinitionJson(handle).map(this::parse); }
     /** Definitions of all active agents, whether they came from a YAML file or from the UI. */
     public List<AgentDefinition> allDefinitions() { return repository.findAllDefinitionJson().stream().map(this::parse).toList(); }

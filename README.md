@@ -23,23 +23,26 @@ bash start.sh stop   # stop
 
 ### Run it with Docker instead
 
-The same board and demo in a container. Docker does not ask for keys, so put them in `.env` first.
+The same board and demo in a container. Docker does not ask for the OpenAI key, so put it in `.env` first. Connect GitHub afterwards on the Demo tab, as below.
 
 ```sh
-cp .env.example .env              # then add OPENAI_API_KEY and GITHUB_TOKEN:  open -e .env
-docker compose up --build -d      # http://127.0.0.1:8087/  (another port: PORT=8096 docker compose up --build -d)
+cp .env.example .env              # then add OPENAI_API_KEY:  open -e .env
+docker compose up --build -d --wait --wait-timeout 300  # http://127.0.0.1:8087/
 docker compose down               # stop; add -v to also delete the board's data
 ```
 
 - It is published on 127.0.0.1 only, so, as with `start.sh`, no board token is needed on this computer.
 - Its data lives in a Docker volume, separate from the `data/` folder that `start.sh` uses.
 - Stop the `start.sh` board first (`bash start.sh stop`) or use another `PORT`; both want port 8087.
+- See [Docker startup and troubleshooting](docs/docker.md) for alternate ports, health checks, persistent storage and PostgreSQL.
 
 ---
 
 ### Use it
 
-1. **Demo · 10 agents** – a ready-made GitHub team (`examples/`). Five agents read a repository's issues, pull requests, commits, releases and folders through the GitHub MCP server; four map issues to code, explain the change impact, plan tests and review risks; one writes the briefing. Press **Run the demo** and name a repository.
+1. **Demo · 10 agents** – a ready-made GitHub team (`examples/`). Five agents read a repository's issues, pull requests, commits, releases and folders through the GitHub MCP server; four map issues to code, explain the change impact, plan tests and review risks; one writes the briefing.
+   - **Connect GitHub first.** GitHub's MCP server needs a token, so a new board (and every Docker board, which starts with its own empty data) has no GitHub yet. On the Demo tab press **Add the GitHub connector**, paste a GitHub token (read-only is enough; create one at https://github.com/settings/tokens) and press **Save and test**. The token is stored encrypted in the board's data.
+   - Then press **Run the demo** and name a repository, for example `spring-projects/spring-ai`.
 2. **Create agent** – describe the task in plain words and tick the connectors it may use. One small model request drafts the agent; you check it and create it.
 3. **Workflows** – add agents to the canvas and press **Connect** to pass one agent's result to another. Press **Run workflow**, and **Stop** if you change your mind.
 4. **Feed and Run history** – read each agent's update. If a run failed, **Console output** shows every model request and tool call, with its error.
