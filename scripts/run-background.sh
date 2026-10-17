@@ -19,6 +19,7 @@ if [ "${1:-}" = "--stop" ]; then
   exit 0
 fi
 if curl -fsS -o /dev/null "${URL}api/access" 2>/dev/null; then
+  echo "Design lab (start here): ${URL}architecture-lab.html"
   echo "Agent Board is already running: $URL"
   exit 0
 fi
@@ -28,6 +29,7 @@ nohup bash ./scripts/start-local.sh "$@" >"$LOG" 2>&1 &
 echo $! >"$PIDFILE"
 for _ in $(seq 1 180); do
   if curl -fsS -o /dev/null "${URL}api/access" 2>/dev/null; then
+    echo "Design lab (start here): ${URL}architecture-lab.html"
     echo "Agent Board is running: $URL"
     echo "Log: $LOG    Stop: bash ./scripts/run-background.sh --stop"
     exit 0

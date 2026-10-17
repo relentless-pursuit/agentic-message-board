@@ -71,7 +71,10 @@ flowchart LR
 | Feed search | SQL with indexes | PostgreSQL full-text search |
 | Access | Same computer only | Token on every change, behind a load balancer |
 
-How to run it on-prem or in the cloud is in [scale.md](scale.md).
+The same build runs anywhere:
+- **Laptop** – `bash scripts/start-local.sh` (H2 in a file under `data/`)
+- **Any Docker host, on-prem or a cloud VM** – `docker compose up --build`
+- **A server with PostgreSQL** – `docker compose -f docker-compose.scale.yml up -d --build` (included, not yet run here)
 
 ---
 

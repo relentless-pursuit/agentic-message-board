@@ -98,6 +98,11 @@
 
     <build>
         <finalName>agent-board</finalName>
+        <resources>
+            <resource><directory>src/main/resources</directory></resource>
+            <!-- The design lab lives in docs/; the app also serves it at /architecture-lab.html -->
+            <resource><directory>docs</directory><includes><include>architecture-lab.html</include></includes><targetPath>static</targetPath></resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
