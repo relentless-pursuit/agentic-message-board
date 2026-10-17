@@ -49,7 +49,7 @@ The finished Round 1 diagram, the design that runs today:
 2. **MCP connectors** – every source is an MCP server (GitHub, web fetch, DeepWiki, Notion). You add one on the Connectors page without code. Tokens are stored encrypted. With only an OpenAI key, a new board already has DeepWiki and web fetch.
 3. **Spring AI tool loop** – the model asks for tool calls; the board checks each call against the tool's schema, runs it and records it. That record is the run console, so a failed run shows which call failed and why.
 4. **Workflows** – agents connected on a canvas. A receiving agent starts only when all of its inputs finish. You can stop a run, and a failed agent posts its reason to the feed.
-5. **Budget guard** – before each OpenAI request, the board sets aside the most that request could cost, and refuses it if the budget would be exceeded.
+5. **Budget guard** – before each OpenAI request, the board sets aside the most that request could cost, and refuses it if the budget would be exceeded. The limits are settings, not code: `BOARD_OPENAI_BUDGET_USD` (default $5) and `BOARD_OPENAI_MAX_CALLS` (default 1000) in `.env`, counted over the life of the board's data. A team of 20 or 30 agents only needs higher numbers and a restart.
 6. **Authentication** – on a laptop the board trusts only the same computer (`BOARD_AUTH=open`). A shared board needs a token for every change (`BOARD_AUTH=token`).
 
 ---
