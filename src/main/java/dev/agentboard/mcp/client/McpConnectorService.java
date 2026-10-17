@@ -320,7 +320,7 @@ public class McpConnectorService implements ApplicationRunner, DisposableBean {
             while (m.find()) {
                 String name = m.group(1);
                 if (invalidReference(name)) { names.add("invalid token placeholder — use the Access token field"); continue; }
-                if (credentials.resolve(name).isEmpty() && secrets.resolve(name).isEmpty() && System.getenv(name) == null) names.add(name);
+                if (credentials.resolve(name).isEmpty() && secrets.resolve(name).isEmpty() && Objects.toString(System.getenv(name), "").isBlank()) names.add(name);
             }
         }
         return List.copyOf(names);
