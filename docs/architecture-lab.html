@@ -6,152 +6,184 @@
 <title>Architecture Lab</title>
 <meta name="description" content="Build the Agent Board architecture one requirement at a time: first the lightweight design that runs today, then the design at scale.">
 <style>
+/* Same look as the Agent Board app (src/main/resources/static/board.css). */
 :root{
-  --bg:#0d1117;--panel:#151b23;--panel2:#1b2330;--line:#2a3441;--ink:#e6edf3;--muted:#8b98a7;--accent:#58a6ff;
-  --good:#3fb950;--bad:#f85149;--warn:#d29922;--grid:#1f2833;
-  --k-client:#1f9bd7;--k-service:#2f6fd1;--k-queue:#8957e5;--k-db:#5aa6d6;--k-search:#2fa3a3;--k-cache:#c9a227;
-  --k-lb:#e08a2e;--k-guard:#2ea043;--k-external:#57606a;--k-connector:#bc4c9a;
-  --radius:12px;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;color-scheme:dark;
+  color-scheme:light;--bg:#fafaf8;--panel:#fff;--ink:#242622;--muted:#73776e;--line:#e7e9e2;--blue:#3986e8;--soft:#eff6ff;
+  --green:#247e50;--red:#b34b45;--amber:#a57b25;--radius:16px;
+  --k-client:#3986e8;--k-service:#3f6fb5;--k-queue:#8a63c9;--k-db:#3c8fb8;--k-search:#2f9488;--k-cache:#c3922e;
+  --k-lb:#d07a2c;--k-guard:#2f8a57;--k-external:#8b9087;--k-connector:#b0558f;
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;
 }
-@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){
-  --bg:#f6f8fa;--panel:#ffffff;--panel2:#f3f5f8;--line:#d8dee4;--ink:#1f2328;--muted:#59636e;--accent:#0969da;--grid:#e6eaef;--k-external:#8c959f;color-scheme:light}}
-:root[data-theme="light"]{--bg:#f6f8fa;--panel:#ffffff;--panel2:#f3f5f8;--line:#d8dee4;--ink:#1f2328;--muted:#59636e;--accent:#0969da;--grid:#e6eaef;--k-external:#8c959f;color-scheme:light}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);line-height:1.5}
+[hidden]{display:none!important}
+body{margin:0;color:var(--ink);background:var(--bg);line-height:1.55}
 button{font:inherit;color:inherit;cursor:pointer}
-a{color:var(--accent)}
-.wrap{max-width:1440px;margin:0 auto;padding:18px 16px 28px}
-header{display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px;margin-bottom:14px}
-.title{flex:1;min-width:240px}
-.eyebrow{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent)}
-h1{margin:2px 0 0;font-size:22px;font-weight:650;letter-spacing:-.3px}
-.sub{margin:2px 0 0;color:var(--muted);font-size:13px}
-.tabs{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
-.tab{border:0;background:transparent;padding:8px 14px;border-radius:8px;color:var(--muted);font-weight:600;font-size:13px}
-.tab[aria-selected="true"]{background:var(--panel2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
-.tab small{display:block;font-weight:500;font-size:10.5px;color:var(--muted)}
-.stats{display:flex;gap:18px}
-.stat{text-align:right}.stat b{display:block;font-size:20px;font-variant-numeric:tabular-nums}.stat span{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
-.stat.time b{color:var(--warn)}
-.grid{display:grid;grid-template-columns:200px minmax(0,1fr) 300px;gap:14px;align-items:start}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
-.panel h2{margin:0 0 10px;font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);font-weight:700}
-.palette{display:flex;flex-direction:column;gap:6px;max-height:calc(100vh - 140px);overflow:auto}
-.chip{display:flex;align-items:center;gap:8px;width:100%;border:1px solid transparent;border-radius:9px;padding:6px 10px;text-align:left;font-size:12px;line-height:1.3;font-weight:600;color:#fff;touch-action:none;user-select:none;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
-.chip:hover{filter:brightness(1.08)}.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.chip[aria-pressed="true"]{outline:2px solid #fff;outline-offset:1px}
-.chip.used{opacity:.32}
-.chip .k{margin-left:auto;font-size:9.5px;font-weight:600;opacity:.85;text-transform:uppercase;letter-spacing:.6px}
-.k-client{background:var(--k-client)}.k-service{background:var(--k-service)}.k-queue{background:var(--k-queue)}.k-db{background:var(--k-db)}.k-search{background:var(--k-search)}.k-cache{background:var(--k-cache)}.k-lb{background:var(--k-lb)}.k-guard{background:var(--k-guard)}.k-external{background:var(--k-external)}.k-connector{background:var(--k-connector)}
-.stage{padding:10px}
-.stage-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:2px 4px 8px}
-.stage-head h3{margin:0;font-size:15px}
+a{color:#587ca4}
+h1,h2,h3,p{margin-top:0}
+.wrap{max-width:1440px;margin:0 auto;padding:0 28px 28px}
+.topbar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:16px 24px;padding:24px 0 18px;border-bottom:1px solid var(--line);margin-bottom:18px}
+.eyebrow{color:#8b9087;font-size:10px;font-weight:600;letter-spacing:1.3px;text-transform:uppercase}
+h1{font-size:22px;margin:4px 0 0;font-weight:650}
+.lede{margin:4px 0 0;color:var(--muted);font-size:13px}
+.right{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.tabs{display:flex;gap:4px;padding:4px;background:#f2f3ef;border:1px solid var(--line);border-radius:12px}
+.tab{border:0;background:transparent;padding:8px 13px;border-radius:9px;color:#666b61;font-size:12px;font-weight:600;text-align:left}
+.tab small{display:block;font-weight:500;font-size:10px;color:#8b9087}
+.tab[aria-selected="true"]{background:#fff;color:#336eae;box-shadow:0 1px 3px #30392b14}
+.stats{display:flex;gap:20px}
+.stat{text-align:right}.stat b{display:block;font-size:20px;font-weight:650;font-variant-numeric:tabular-nums}.stat span{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#8b9087}
+.button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:8px 13px;background:#fff;color:var(--ink);border:1px solid #dfe3da;border-radius:9px;white-space:nowrap;font-size:12px;font-weight:550;text-decoration:none}
+.button:hover{background:#f2f4ef}
+.button.primary{background:#20231e;color:#fff;border-color:#20231e}.button.primary:hover{background:#3c4237}
+.button:disabled{opacity:.45;cursor:default}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+.panel-title{margin:0 0 10px;font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:#8b9087;font-weight:600}
+.grid{display:grid;grid-template-columns:210px minmax(0,1fr) 290px;gap:16px;align-items:start}
+/* palette */
+.palette{display:flex;flex-direction:column;gap:6px;max-height:calc(100vh - 150px);overflow:auto;padding:2px}
+.chip{display:flex;align-items:center;gap:9px;width:100%;padding:7px 10px;background:#fff;border:1px solid var(--line);border-radius:10px;text-align:left;font-size:12px;font-weight:550;line-height:1.3;touch-action:none;user-select:none}
+.chip:hover{background:#f7f8f4;border-color:#d6dbcf}
+.chip .dot{flex:none;width:9px;height:9px;border-radius:3px}
+.chip .k{margin-left:auto;font-size:9.5px;font-weight:500;color:#8b9087}
+.chip[aria-pressed="true"]{background:var(--soft);border-color:#abcbee;color:#2f69aa}
+.chip.used{opacity:.4}
+.chip:focus-visible,.req:focus-visible{outline:2px solid #77a9e2;outline-offset:2px}
+/* canvas */
+.stage-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 2px 10px}
+.stage-head h2{margin:0;font-size:16px;font-weight:600}
 .stage-head p{margin:0;color:var(--muted);font-size:12px}
-.board{position:relative;border-radius:10px;background-color:var(--bg);background-image:radial-gradient(var(--grid) 1px,transparent 1px);background-size:18px 18px;border:1px solid var(--line)}
+.board{position:relative;border:1px solid var(--line);border-radius:var(--radius);background-color:#f7f8f4;background-image:radial-gradient(#cbd3c2 .7px,transparent .7px);background-size:19px 19px}
 svg{display:block;width:100%;height:auto}
-.edge{fill:none;stroke:var(--muted);stroke-width:1.6;opacity:.75}
-.edge.data{stroke-dasharray:5 5;opacity:.55}
-.edge-label{fill:var(--muted);font-size:10.5px}
+.edge{fill:none;stroke:#a9b5a1;stroke-width:1.6}
+.edge.data{stroke-dasharray:5 5;stroke:#c2c9ba}
+.edge-label{fill:#7d8775;font-size:10.5px}
 .node text{pointer-events:none}
-.node .name{fill:#fff;font-size:12.5px;font-weight:650}
-.node .meta{fill:rgba(255,255,255,.82);font-size:10px}
-.node.fixed rect{opacity:.92}
-.slot rect.gap{fill:transparent;stroke:var(--muted);stroke-width:1.6;stroke-dasharray:6 6}
-.slot .q{fill:var(--muted);font-size:22px;font-weight:700}
-.slot .num{fill:var(--bg);font-size:10.5px;font-weight:700}
-.slot .numbg{fill:var(--muted)}
+.node .card{fill:#fff;stroke:#dce3d4;stroke-width:1}
+.node .name{fill:var(--ink);font-size:12.5px;font-weight:600}
+.node .meta{fill:var(--muted);font-size:10px}
+.node.fixed .card{fill:#f2f3ef}
+.node.focus .card{stroke:var(--blue);stroke-width:2.2}
+.node.clickable{cursor:pointer}
 .slot{cursor:pointer}.slot:focus{outline:none}
-.slot:focus-visible rect.gap,.slot.active rect.gap{stroke:var(--accent);stroke-width:2.2;fill:color-mix(in srgb,var(--accent) 10%,transparent)}
-.slot.hover rect.gap{stroke:var(--good);fill:color-mix(in srgb,var(--good) 12%,transparent)}
+.slot .gap{fill:rgba(255,255,255,.55);stroke:#b9c1b0;stroke-width:1.5;stroke-dasharray:6 5}
+.slot .q{fill:#a0a69b;font-size:21px;font-weight:600}
+.numbg{fill:#e9ece4}.num{fill:#5d6655;font-size:10.5px;font-weight:700}
+.slot:focus-visible .gap,.slot.active .gap{stroke:var(--blue);stroke-width:2;fill:#eef4fc}
+.slot.hover .gap{stroke:var(--green);fill:#edf7ef}
 .slot.shake{animation:shake .35s}
 @keyframes shake{20%,60%{translate:-5px 0}40%,80%{translate:5px 0}}
-.slot.filled{cursor:default}
-.check{fill:var(--good);stroke:var(--panel);stroke-width:2}
-.badge-designed{fill:var(--warn)}
-.reqs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
-.req{display:flex;gap:9px;align-items:flex-start;width:100%;border:1px solid transparent;background:transparent;border-radius:8px;padding:7px 8px;text-align:left;font-size:12.5px;color:var(--ink)}
-.req:hover{background:var(--panel2)}.req.active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
-.box{flex:none;width:17px;height:17px;border-radius:5px;border:1.6px solid var(--muted);display:grid;place-items:center;font-size:11px;margin-top:1px}
-.req.done .box{background:var(--good);border-color:var(--good);color:#fff}
-.req.done .rt{color:var(--muted)}
-.req .n{color:var(--muted);font-variant-numeric:tabular-nums;margin-right:2px}
-.note{margin-top:12px;border-radius:10px;padding:12px;background:var(--panel2);border:1px solid var(--line);font-size:12.5px;min-height:110px}
-.note h4{margin:0 0 4px;font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.check{fill:var(--green)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:10px 2px 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:22px;border-top:1.6px solid #a9b5a1}.legend i.d{border-top:1.6px dashed #c2c9ba}
+/* the note: right under the canvas, where things are dropped */
+.note{margin-top:12px;padding:14px 16px;border-radius:12px;background:#f5f7f1;border:1px solid var(--line);font-size:13px;min-height:84px}
+.note h3{margin:0;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .note p{margin:6px 0 0;color:var(--ink)}
 .note .next{color:var(--muted)}
-.note.good{border-color:color-mix(in srgb,var(--good) 55%,var(--line))}
-.note.bad{border-color:color-mix(in srgb,var(--bad) 55%,var(--line))}
-.note.bad h4{color:var(--bad)}.note.good h4{color:var(--good)}
-.tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;border-radius:99px;padding:2px 8px}
-.tag.built{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
-.tag.designed{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
-.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.btn{border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:7px 11px;font-size:12px;font-weight:600}
-.btn:hover{border-color:var(--muted)}.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:8px 4px 0}
-.legend span{display:inline-flex;align-items:center;gap:6px}
-.legend i{display:inline-block;width:22px;border-top:1.6px solid var(--muted)}.legend i.d{border-top-style:dashed}
-.ghost{position:fixed;z-index:50;pointer-events:none;transform:translate(-50%,-50%) rotate(-2deg);box-shadow:0 10px 30px rgba(0,0,0,.45);width:180px}
-.overlay{position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(2px);border-radius:10px}
-.card{max-width:560px;margin:16px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
-.card h3{margin:0 0 6px;font-size:18px}.card p{margin:6px 0;color:var(--muted)}
-.summary{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
-.summary th,.summary td{border-top:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:top}
-.summary th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.6px}
-footer{margin-top:14px;color:var(--muted);font-size:12px}
-@media (max-width:1100px){.grid{grid-template-columns:180px minmax(0,1fr)}.side{grid-column:1 / -1}}
-@media (max-width:700px){.grid{grid-template-columns:1fr}.palette{flex-direction:row;flex-wrap:wrap;max-height:none}.chip{width:auto}.stats{width:100%;justify-content:space-between}}
+.note.good{background:#f3faf5;border-color:#cfe6d6}.note.good h3{color:var(--green)}
+.note.bad{background:#fff5f3;border-color:#efcfca}.note.bad h3{color:var(--red)}
+.tag{display:inline-block;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:600}
+.tag.built{background:#edf7ef;color:var(--green)}
+.tag.designed{background:#fff7e6;color:var(--amber)}
+/* requirements */
+.reqs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.req{display:flex;gap:9px;align-items:flex-start;width:100%;border:1px solid transparent;background:transparent;border-radius:9px;padding:7px 8px;text-align:left;font-size:12.5px}
+.req:hover{background:#f7f8f4}.req.active{background:#eef4fc;border-color:#c3dcf8}
+.box{flex:none;width:17px;height:17px;border-radius:5px;border:1.5px solid #c5cbbd;display:grid;place-items:center;font-size:11px;margin-top:1px;background:#fff}
+.req.done .box{background:var(--green);border-color:var(--green);color:#fff}
+.req.done .rt{color:var(--muted)}
+.req .n{color:#8b9087;font-variant-numeric:tabular-nums}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+/* round complete */
+.overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(250,250,248,.82);backdrop-filter:blur(3px);border-radius:var(--radius)}
+.done-card{max-width:520px;margin:16px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px 24px;box-shadow:0 15px 70px #27312226}
+.done-card h3{margin:4px 0 8px;font-size:18px}.done-card p{margin:6px 0;color:var(--muted);font-size:13px}
+/* solution */
+.sol-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.sol-head h2{margin:0;font-size:18px;font-weight:600}.sol-head p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;margin-top:16px}
+.explain{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;font-size:12.5px;cursor:pointer;scroll-margin:16px}
+.explain:hover{border-color:#d6dbcf}.explain.focus{border-color:#71a5df;box-shadow:0 0 0 2px #dbeafa}
+.explain .top{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.explain .badge{flex:none;width:22px;height:22px;border-radius:50%;background:#e9ece4;color:#5d6655;display:grid;place-items:center;font-size:11px;font-weight:700}
+.explain .top strong{font-size:13.5px;font-weight:600}
+.explain .top .tag{margin-left:auto}
+.explain .req-line{margin:0 0 6px;color:#587ca4;font-weight:550}
+.explain p{margin:5px 0 0}.explain .next{color:var(--muted)}
+.rejects{margin-top:18px}
+.rejects summary{cursor:pointer;color:#6c8059;font-size:13px;font-weight:550}
+.rejects ul{margin:10px 0 0;padding-left:18px;font-size:12.5px;line-height:1.6}
+.rejects li{margin:6px 0}.rejects li strong{font-weight:600}
+footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);color:#969c8d;font-size:11px}
+@media (max-width:1100px){.grid{grid-template-columns:190px minmax(0,1fr)}.side{grid-column:1 / -1}}
+@media (max-width:720px){.wrap{padding:0 16px 20px}.grid{grid-template-columns:1fr}.palette{flex-direction:row;flex-wrap:wrap;max-height:none}.chip{width:auto}.right{width:100%;justify-content:space-between}.cards{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.slot.shake{animation:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <div class="title">
-      <div class="eyebrow">Agent Board · Architecture Lab</div>
-      <h1 id="problem">Build the design, one requirement at a time</h1>
-      <p class="sub" id="lede"></p>
+  <header class="topbar">
+    <div>
+      <span class="eyebrow">Agent Board · Architecture Lab</span>
+      <h1 id="title"></h1>
+      <p class="lede" id="lede"></p>
     </div>
-    <div class="tabs" role="tablist" aria-label="Round">
-      <button class="tab" role="tab" id="tab-light" data-mode="light">1 · Lightweight<small>what runs today</small></button>
-      <button class="tab" role="tab" id="tab-scale" data-mode="scale">2 · At scale<small>the next steps</small></button>
-    </div>
-    <div class="stats" aria-live="polite">
-      <div class="stat"><b id="score">0</b><span>Score</span></div>
-      <div class="stat"><b id="miss">0</b><span>Misses</span></div>
-      <div class="stat time"><b id="clock">0:00</b><span>Time</span></div>
+    <div class="right">
+      <div class="tabs" role="tablist" aria-label="View">
+        <button class="tab" role="tab" data-view="light">1 · Lightweight<small>what runs today</small></button>
+        <button class="tab" role="tab" data-view="scale">2 · At scale<small>the next steps</small></button>
+        <button class="tab" role="tab" data-view="solution">Solution<small>every part, explained</small></button>
+      </div>
+      <div class="stats" id="stats" aria-live="polite">
+        <div class="stat"><b id="score">0</b><span>Score</span></div>
+        <div class="stat"><b id="miss">0</b><span>Misses</span></div>
+        <div class="stat"><b id="clock">0:00</b><span>Time</span></div>
+      </div>
     </div>
   </header>
 
-  <div class="grid">
+  <!-- The game: palette, canvas with the note under it, requirements -->
+  <div class="grid" id="game">
     <aside class="panel">
-      <h2>Palette</h2>
+      <p class="panel-title">Palette</p>
       <div class="palette" id="palette" aria-label="Components: drag one onto a gap, or select it and then select a gap"></div>
     </aside>
-
-    <section class="panel stage">
-      <div class="stage-head">
-        <div><h3 id="stage-title"></h3><p id="stage-hint">Drag a component into a gap, or tap a component, then tap a gap.</p></div>
-      </div>
-      <div class="board" id="board">
-        <svg id="canvas" viewBox="0 0 1000 560" role="img" aria-labelledby="stage-title"></svg>
-      </div>
-      <div class="legend"><span><i></i>request or work flow</span><span><i class="d"></i>reads and writes data</span><span><span class="tag built">built</span> runs today</span><span><span class="tag designed">designed</span> next step, not built yet</span></div>
-    </section>
-
-    <aside class="panel side">
-      <h2>Requirements</h2>
-      <ul class="reqs" id="reqs"></ul>
+    <section class="panel">
+      <div class="stage-head"><h2 id="stage-title"></h2><p>Drag a component into a gap, or click a component and then a gap.</p></div>
+      <div class="board" id="board"><svg id="canvas" viewBox="0 0 1000 560" role="img" aria-labelledby="stage-title"></svg></div>
+      <div class="legend"><span><i></i>request or work flow</span><span><i class="d"></i>reads and writes data</span><span><span class="tag built">built</span>runs today</span><span><span class="tag designed">designed</span>next step, not built yet</span></div>
       <div class="note" id="note" aria-live="polite"></div>
+    </section>
+    <aside class="panel side">
+      <p class="panel-title">Requirements</p>
+      <ul class="reqs" id="reqs"></ul>
       <div class="tools">
-        <button class="btn" id="hint">Hint (−2)</button>
-        <button class="btn" id="reveal">Show the answer</button>
-        <button class="btn" id="reset">Start over</button>
-        <button class="btn" id="theme" aria-label="Switch light or dark theme">◐</button>
+        <button class="button" id="hint">Hint (−2)</button>
+        <button class="button" id="see-solution">See the solution</button>
+        <button class="button" id="reset">Start over</button>
       </div>
     </aside>
   </div>
-  <footer>Every note matches the design write-up: <a href="design.md">design.md</a> (architecture, cost control, scaling table) and <a href="scale.md">scale.md</a> (deployment and the steps to run several copies). “Designed” parts are not built yet.</footer>
+
+  <!-- The solution: the finished diagram and why each part is there -->
+  <section id="solution" hidden>
+    <div class="panel">
+      <div class="sol-head">
+        <div><h2 id="sol-title"></h2><p id="sol-lede"></p></div>
+        <div class="tabs" role="tablist" aria-label="Round">
+          <button class="tab" role="tab" data-sol="light">Lightweight<small>what runs today</small></button>
+          <button class="tab" role="tab" data-sol="scale">At scale<small>the next steps</small></button>
+        </div>
+      </div>
+      <div class="board"><svg id="sol-canvas" viewBox="0 0 1000 560" role="img" aria-labelledby="sol-title"></svg></div>
+      <div class="legend"><span><i></i>request or work flow</span><span><i class="d"></i>reads and writes data</span><span><span class="tag built">built</span>runs today</span><span><span class="tag designed">designed</span>next step, not built yet</span><span>Click a box or a card to match them.</span></div>
+      <div class="cards" id="cards"></div>
+      <details class="rejects" id="rejects"></details>
+    </div>
+  </section>
+
+  <footer>Every note matches the design write-up: <a href="design.md">design.md</a> (architecture, cost control, scaling) and <a href="scale.md">scale.md</a> (deployment and the steps to run several copies). “Designed” parts are not built yet.</footer>
 </div>
 
 <script>
@@ -281,28 +313,30 @@ const ROUNDS={
       {id:'outbox',x:580,y:320,answer:'outbox',req:'Publish posts and run results exactly once',hint:'Write the message in the same transaction as the data.'},
       {id:'store',x:580,y:450,answer:'objectStore',req:'Keep large evidence reports cheaply',hint:'Blobs addressed by run id do not belong in rows.'},
     ],
-    edges:[['ui','lb'],['ext','lb'],['lb','api'],['api','reg'],['api','coord'],['api','search','feed'],['coord','queue','runs'],['queue','workers'],['workers','runtime'],['runtime','openai'],['workers','outbox','posts'],['workers','store','evidence'],['coord','db','',1],['search','db','',1],['outbox','db','',1]],
+    edges:[['ui','lb'],['ext','lb'],['lb','api'],['api','reg'],['api','coord'],['api','search','feed'],['coord','queue','runs'],['queue','workers'],['workers','runtime'],['runtime','openai'],['workers','outbox','posts'],['workers','store'],['coord','db','',1],['search','db','',1],['outbox','db','',1]],
     palette:['h2','lb','kafka','replicas','memQueue','dbRegistry','redis','leaseCoordinator','dbQueue','k8s','leasedWorkers','elastic','pgFts','postgres','outbox','objectStore'],
   },
 };
 
+
 /* --------------------------------------------------------------------------------------------------------- */
 const $=id=>document.getElementById(id);
 const NS='http://www.w3.org/2000/svg';
-const store=(()=>{try{const k='architecture-lab';return{get:()=>JSON.parse(localStorage.getItem(k)||'null'),set:v=>localStorage.setItem(k,JSON.stringify(v))};}catch{return{get:()=>null,set:()=>{}};}})();
+const store=(()=>{const k='architecture-lab-v2';try{localStorage.getItem(k);return{get:()=>{try{return JSON.parse(localStorage.getItem(k)||'null');}catch{return null;}},set:v=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}};}catch{return{get:()=>null,set:()=>{}};}})();
+function fresh(){return{placed:{},missed:{},hints:{},score:0,misses:0,started:null,finished:null};}
 let S=store.get()||{};
-function fresh(){return{placed:{},missed:{},hints:{},score:0,misses:0,started:null,finished:null,revealed:false};}
-S.mode=S.mode||'light';S.light=S.light||fresh();S.scale=S.scale||fresh();
+S.view=S.view||'light';S.sol=S.sol||'light';S.light=S.light||fresh();S.scale=S.scale||fresh();
 let selected=null,activeSlot=null,lastNote=null;
-const R=()=>ROUNDS[S.mode],P=()=>S[S.mode];
+const game=()=>S.view==='solution'?S.sol:S.view;            // the round on screen
+const R=()=>ROUNDS[game()],P=()=>S[game()];
 function save(){store.set(S);}
 function el(tag,attrs={},text){const e=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);if(text!==undefined)e.textContent=text;return e;}
 function h(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
-function cssVar(kind){return getComputedStyle(document.documentElement).getPropertyValue('--k-'+kind).trim();}
-function wrap(text,max){const words=text.split(' '),lines=[''];for(const w of words){const cur=lines[lines.length-1];if((cur+' '+w).trim().length>max&&cur)lines.push(w);else lines[lines.length-1]=(cur+' '+w).trim();}return lines.slice(0,2);}
+const color=kind=>getComputedStyle(document.documentElement).getPropertyValue('--k-'+kind).trim();
+function wrap(text,max){const lines=[''];for(const w of text.split(' ')){const cur=lines[lines.length-1];if((cur+' '+w).trim().length>max&&cur)lines.push(w);else lines[lines.length-1]=(cur+' '+w).trim();}return lines.slice(0,2);}
+function fmt(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
 
-/* ---- rendering --------------------------------------------------------------------------------------------- */
-function boxes(){const r=R(),m=new Map();for(const n of r.fixed)m.set(n.id,n);for(const s of r.slots)m.set(s.id,s);return m;}
+/* ---- diagram: shared by the game and the solution --------------------------------------------------------- */
 function route(a,b){
   const ac={x:a.x+W/2,y:a.y+H/2},bc={x:b.x+W/2,y:b.y+H/2},dx=bc.x-ac.x,dy=bc.y-ac.y;
   // Labels sit beside a straight edge, or beside the middle segment of an elbow, never on an arrowhead.
@@ -311,42 +345,54 @@ function route(a,b){
   const sy=dy>0?a.y+H:a.y,ey=dy>0?b.y:b.y+H,my=(sy+ey)/2,straight=Math.abs(ac.x-bc.x)<4;
   return{d:`M${ac.x},${sy} V${my} H${bc.x} V${ey}`,lx:straight?ac.x-6:(ac.x+bc.x)/2,ly:straight?my+4:my-6,anchor:straight?'end':'middle'};
 }
+function nodeBox(name,meta,kind,x,y,cls){
+  const g=el('g',{class:'node '+(cls||''),transform:`translate(${x},${y})`});
+  g.append(el('rect',{class:'card',width:W,height:H,rx:11}),el('rect',{x:0,y:0,width:5,height:H,rx:2.5,fill:color(kind)}));
+  const lines=wrap(name,21),one=lines.length===1;
+  lines.forEach((l,i)=>g.append(el('text',{x:W/2+2,y:(one&&meta?24:one?32:22)+i*15,'text-anchor':'middle',class:'name'},l)));
+  if(meta&&one)g.append(el('text',{x:W/2+2,y:41,'text-anchor':'middle',class:'meta'},meta));
+  return g;
+}
+function numberBadge(g,i){g.append(el('circle',{cx:2,cy:2,r:10,class:'numbg'}),el('text',{x:2,y:5.5,'text-anchor':'middle',class:'num'},String(i+1)));}
+/** Draws a round. placed maps slot id to component id; solution draws every slot filled and numbered. */
+function drawDiagram(svg,key,placed,solution){
+  const r=ROUNDS[key];svg.replaceChildren();
+  const defs=el('defs'),mk=el('marker',{id:'arrow-'+svg.id,viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'7',markerHeight:'7',orient:'auto-start-reverse'});
+  mk.append(el('path',{d:'M0,0 L10,5 L0,10 z',fill:'#a9b5a1'}));defs.append(mk);svg.append(defs);
+  const boxes=new Map([...r.fixed,...r.slots].map(n=>[n.id,n])),edges=el('g');svg.append(edges);
+  for(const[from,to,label,data]of r.edges){const rt=route(boxes.get(from),boxes.get(to));
+    edges.append(el('path',{d:rt.d,class:'edge'+(data?' data':''),'marker-end':data?'':`url(#arrow-${svg.id})`}));
+    if(label)edges.append(el('text',{x:rt.lx,y:rt.ly,'text-anchor':rt.anchor,class:'edge-label'},label));}
+  for(const n of r.fixed)svg.append(nodeBox(n.name,n.meta,n.kind,n.x,n.y,'fixed'));
+  r.slots.forEach((s,i)=>{
+    const id=solution?s.answer:placed[s.id];
+    if(id){const c=C[id],g=nodeBox(c.name,c.status==='designed'?'designed · next step':'built · runs today',c.kind,s.x,s.y,'filled clickable');g.dataset.slot=s.id;
+      if(solution)numberBadge(g,i);else g.append(el('circle',{cx:W-3,cy:3,r:9,class:'check'}),el('path',{d:`M${W-7.5},3 l3,3 l5.5,-6`,fill:'none',stroke:'#fff','stroke-width':2.2,'stroke-linecap':'round','stroke-linejoin':'round'}));
+      svg.append(g);return;}
+    const g=el('g',{class:'slot'+(activeSlot===s.id?' active':''),transform:`translate(${s.x},${s.y})`,tabindex:0,role:'button','aria-label':`Gap ${i+1}: ${s.req}`});g.dataset.slot=s.id;
+    g.append(el('rect',{class:'gap',width:W,height:H,rx:11}),el('text',{x:W/2,y:35,'text-anchor':'middle',class:'q'},'?'));numberBadge(g,i);svg.append(g);
+  });
+}
+
+/* ---- game ---------------------------------------------------------------------------------------------------- */
 function render(){
-  const r=R(),p=P(),svg=$('canvas');svg.replaceChildren();
-  document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.mode===S.mode)));
-  $('lede').textContent=r.lede;$('stage-title').textContent=r.stage;$('problem').textContent=r.title;
-  const defs=el('defs'),mk=el('marker',{id:'arrow',viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'7',markerHeight:'7',orient:'auto-start-reverse'});
-  mk.append(el('path',{d:'M0,0 L10,5 L0,10 z',fill:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()}));defs.append(mk);svg.append(defs);
-  const b=boxes(),edges=el('g');svg.append(edges);
-  for(const[from,to,label,data]of r.edges){const rt=route(b.get(from),b.get(to));edges.append(el('path',{d:rt.d,class:'edge'+(data?' data':''),'marker-end':data?'':'url(#arrow)'}));if(label)edges.append(el('text',{x:rt.lx,y:rt.ly,'text-anchor':rt.anchor,class:'edge-label'},label));}
-  for(const n of r.fixed)svg.append(nodeBox(n.name,n.meta,n.kind,n.x,n.y,'node fixed'));
-  r.slots.forEach((s,i)=>svg.append(slotBox(s,i)));
+  document.querySelectorAll('[data-view]').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.view===S.view)));
+  const sol=S.view==='solution';$('game').hidden=sol;$('solution').hidden=!sol;$('stats').hidden=sol;
+  if(sol){renderSolution();return;}
+  const r=R(),p=P();$('title').textContent=r.title;$('lede').textContent=r.lede;$('stage-title').textContent=r.stage;
+  drawDiagram($('canvas'),S.view,p.placed,false);
+  for(const g of $('canvas').querySelectorAll('[data-slot]')){
+    const id=g.dataset.slot;
+    if(g.classList.contains('slot')){const pick=()=>{if(selected)place(selected,id);else{activeSlot=id;render();}};g.addEventListener('click',pick);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();}});}
+    else g.addEventListener('click',()=>noteFor(r.slots.find(s=>s.id===id),p.placed[id]));
+  }
   renderPalette();renderReqs();renderNote();
   if(p.finished&&!$('board').querySelector('.overlay'))showDone();
 }
-function nodeBox(name,meta,kind,x,y,cls){
-  const g=el('g',{class:cls,transform:`translate(${x},${y})`});
-  g.append(el('rect',{width:W,height:H,rx:10,fill:cssVar(kind)}),el('rect',{y:H-4,width:W,height:4,rx:2,fill:'rgba(0,0,0,.22)'}));
-  const lines=wrap(name,20);lines.forEach((l,i)=>g.append(el('text',{x:W/2,y:(meta&&lines.length===1?23:lines.length===1?32:22)+i*15,'text-anchor':'middle',class:'name'},l)));
-  if(meta&&lines.length===1)g.append(el('text',{x:W/2,y:40,'text-anchor':'middle',class:'meta'},meta));
-  return g;
-}
-function slotBox(s,i){
-  const p=P(),placed=p.placed[s.id];
-  if(placed){const c=C[placed],g=nodeBox(c.name,c.status==='designed'?'designed · next step':'built · runs today',c.kind,s.x,s.y,'node slot filled');
-    g.dataset.slot=s.id;g.append(el('circle',{cx:W-4,cy:4,r:9,class:'check'}),el('path',{d:`M${W-8.5},4 l3,3 l5.5,-6`,fill:'none',stroke:'#fff','stroke-width':2.2,'stroke-linecap':'round','stroke-linejoin':'round'}));
-    if(c.status==='designed')g.append(el('circle',{cx:8,cy:8,r:4,class:'badge-designed'}));
-    g.addEventListener('click',()=>{showNoteFor(s,placed,true);});return g;}
-  const g=el('g',{class:'slot'+(activeSlot===s.id?' active':''),transform:`translate(${s.x},${s.y})`,tabindex:0,role:'button','aria-label':`Gap ${i+1}: ${s.req}`});g.dataset.slot=s.id;
-  g.append(el('rect',{width:W,height:H,rx:10,class:'gap'}),el('text',{x:W/2,y:35,'text-anchor':'middle',class:'q'},'?'),el('circle',{cx:14,cy:14,r:9,class:'numbg'}),el('text',{x:14,y:17.5,'text-anchor':'middle',class:'num'},String(i+1)));
-  const pick=()=>{if(selected)place(selected,s.id);else{activeSlot=s.id;render();}};
-  g.addEventListener('click',pick);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();}});
-  return g;
-}
 function renderPalette(){
   const r=R(),p=P(),box=$('palette');box.replaceChildren();const used=new Set(Object.values(p.placed));
-  for(const id of r.palette){const c=C[id],b=h('button','chip k-'+c.kind);b.type='button';b.dataset.comp=id;b.setAttribute('aria-pressed',String(selected===id));
-    b.append(h('span','',c.name),h('span','k',c.kind==='connector'?'source':c.kind==='external'?'infra':c.kind));
+  for(const id of r.palette){const c=C[id],b=h('button','chip');b.type='button';b.dataset.comp=id;b.setAttribute('aria-pressed',String(selected===id));
+    const dot=h('span','dot');dot.style.background=color(c.kind);b.append(dot,h('span','',c.name),h('span','k',{connector:'source',external:'infra'}[c.kind]||c.kind));
     if(used.has(id)){b.classList.add('used');b.disabled=true;b.title='Already placed';}
     b.addEventListener('pointerdown',e=>startDrag(e,id,b));
     b.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleSelect(id);}});
@@ -355,50 +401,43 @@ function renderPalette(){
 function renderReqs(){
   const r=R(),p=P(),ul=$('reqs');ul.replaceChildren();
   r.slots.forEach((s,i)=>{const li=h('li'),b=h('button','req'+(p.placed[s.id]?' done':'')+(activeSlot===s.id?' active':''));b.type='button';
-    const box=h('span','box',p.placed[s.id]?'✓':'');const t=h('span','rt');t.append(h('span','n',(i+1)+'.'),document.createTextNode(' '+s.req));b.append(box,t);
-    b.addEventListener('click',()=>{activeSlot=s.id;if(p.placed[s.id])showNoteFor(s,p.placed[s.id],true);render();});li.append(b);ul.append(li);});
-  const left=r.slots.filter(s=>!p.placed[s.id]).length;$('hint').disabled=!left;$('reveal').disabled=!left;
+    const t=h('span','rt');t.append(h('span','n',(i+1)+'. '),document.createTextNode(s.req));b.append(h('span','box',p.placed[s.id]?'✓':''),t);
+    b.addEventListener('click',()=>{activeSlot=s.id;if(p.placed[s.id])noteFor(s,p.placed[s.id]);render();});li.append(b);ul.append(li);});
+  $('hint').disabled=r.slots.every(s=>p.placed[s.id]);
 }
 function renderNote(){
   const n=$('note');n.className='note';n.replaceChildren();
-  if(!lastNote){n.append(h('h4','',selected?'Now pick a gap':'How to play'),h('p','',selected?`“${C[selected].name}” is selected. Select the gap it belongs in, or drag it there.`:'Each numbered gap meets one requirement. Drag a component from the palette into a gap, or tap a component and then a gap. Right first time scores 10, after a miss 4. A hint costs 2.'));return;}
-  n.classList.add(lastNote.kind);const head=h('h4');head.append(document.createTextNode(lastNote.title));if(lastNote.status)head.append(h('span','tag '+lastNote.status,lastNote.status));n.append(head);
+  if(!lastNote){n.append(h('h3','',selected?'Now pick a gap':'How to play'),h('p','',selected?`“${C[selected].name}” is selected. Click the gap it belongs in, or drag it there.`:'Each numbered gap meets one requirement. Put the right component in it and this note explains why it fits, and what replaces it at scale. Right first time scores 10, after a miss 4; a hint costs 2.'));return;}
+  if(lastNote.kind)n.classList.add(lastNote.kind);const head=h('h3');head.append(document.createTextNode(lastNote.title));if(lastNote.status)head.append(h('span','tag '+lastNote.status,lastNote.status));n.append(head);
   for(const[t,cls]of lastNote.body)n.append(h('p',cls||'',t));
 }
-
-/* ---- interaction ------------------------------------------------------------------------------------------- */
+function noteFor(s,id,pts){const c=C[id],body=[[c.good]];if(game()==='light'&&c.next)body.push([c.next,'next']);
+  lastNote={kind:'good',title:(pts?`+${pts} · `:'')+c.name,status:c.status,body};renderNote();}
 function toggleSelect(id){selected=selected===id?null:id;lastNote=null;renderPalette();renderNote();}
 function tick(){const p=P();if(!p.started){p.started=Date.now();save();}}
 function place(id,slotId){
   const r=R(),p=P(),s=r.slots.find(x=>x.id===slotId);if(!s||p.placed[slotId]||p.finished)return;tick();
   const c=C[id];selected=null;
   if(s.answer===id){
-    const pts=p.missed[slotId]?4:10;p.score+=pts;p.placed[slotId]=id;activeSlot=null;save();
-    showNoteFor(s,id,false,pts);
-    if(r.slots.every(x=>p.placed[x.id])){p.finished=Date.now();save();render();showDone();return;}
-  }else{
-    p.misses++;p.missed[slotId]=(p.missed[slotId]||0)+1;save();
-    const elsewhere=r.slots.find(x=>x.answer===id&&!p.placed[x.id]);
-    const why=elsewhere?`Right component, wrong gap: it answers “${elsewhere.req}”.`:(c.no?.[S.mode]||c.no?.any||'It does not meet this requirement.');
-    lastNote={kind:'bad',title:'Not here: '+c.name,body:[[why],['Gap '+(r.slots.indexOf(s)+1)+' needs: '+s.req,'next']]};
-    activeSlot=slotId;render();
-    const g=$('canvas').querySelector(`[data-slot="${slotId}"]`);if(g){g.classList.add('shake');setTimeout(()=>g.classList.remove('shake'),400);}
-    return;
+    const pts=p.missed[slotId]?4:10;p.score+=pts;p.placed[slotId]=id;activeSlot=null;
+    if(r.slots.every(x=>p.placed[x.id]))p.finished=Date.now();save();
+    render();noteFor(s,id,pts);return;
   }
-  render();
-}
-function showNoteFor(s,id,revisit,pts){
-  const c=C[id],body=[[c.good]];if(S.mode==='light'&&c.next)body.push([c.next,'next']);
-  lastNote={kind:'good',title:(revisit?'':pts?`+${pts} · `:'')+c.name,status:c.status,body};renderNote();
+  p.misses++;p.missed[slotId]=(p.missed[slotId]||0)+1;save();
+  const elsewhere=r.slots.find(x=>x.answer===id&&!p.placed[x.id]);
+  const why=elsewhere?`Right component, wrong gap: it answers “${elsewhere.req}”.`:(c.no?.[game()]||c.no?.any||'It does not meet this requirement.');
+  lastNote={kind:'bad',title:'Not here: '+c.name,body:[[why],['Gap '+(r.slots.indexOf(s)+1)+' needs: '+s.req,'next']]};
+  activeSlot=slotId;render();
+  const g=$('canvas').querySelector(`.slot[data-slot="${slotId}"]`);if(g){g.classList.add('shake');setTimeout(()=>g.classList.remove('shake'),400);}
 }
 /* Pointer-based drag so it works with a mouse, a pen and a finger. A press without movement selects instead. */
 function startDrag(e,id,chip){
   if(chip.disabled||P().finished)return;const x0=e.clientX,y0=e.clientY;let ghost=null,over=null;
   const move=ev=>{
     if(!ghost&&Math.hypot(ev.clientX-x0,ev.clientY-y0)<5)return;
-    if(!ghost){ghost=chip.cloneNode(true);ghost.classList.add('ghost');document.body.append(ghost);}
+    if(!ghost){ghost=chip.cloneNode(true);Object.assign(ghost.style,{position:'fixed',zIndex:50,pointerEvents:'none',width:chip.offsetWidth+'px',transform:'translate(-50%,-50%) rotate(-2deg)',boxShadow:'0 10px 28px #27312233'});document.body.append(ghost);}
     ghost.style.left=ev.clientX+'px';ghost.style.top=ev.clientY+'px';
-    const hit=document.elementFromPoint(ev.clientX,ev.clientY)?.closest?.('.slot:not(.filled)');
+    const hit=document.elementFromPoint(ev.clientX,ev.clientY)?.closest?.('.slot');
     if(over!==hit){over?.classList.remove('hover');over=hit;over?.classList.add('hover');}
   };
   const up=ev=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);
@@ -406,37 +445,51 @@ function startDrag(e,id,chip){
   window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);
 }
 function showDone(){
-  const r=R(),p=P(),old=$('board').querySelector('.overlay');old?.remove();
-  const o=h('div','overlay'),card=h('div','card'),secs=Math.round(((p.finished||Date.now())-(p.started||Date.now()))/1000);
-  const max=r.slots.length*10;
-  if(S.mode==='light'){
-    card.append(h('div','eyebrow','Round 1 complete'),h('h3','',p.revealed?'That is the lightweight design':`Score ${p.score} / ${max} · ${p.misses} miss${p.misses===1?'':'es'} · ${fmt(secs)}`),
-      h('p','','One jar, one file database, an in-process queue and a bounded worker pool: everything runs on a laptop with no other service. Every part is built and runs today.'),
-      h('p','','The hard part of scaling is not the database. It is having several copies of the app agree on who coordinates each workflow, who owns each run and who publishes each post.'));
-    const act=h('div','tools'),go=h('button','btn primary','Now scale it →');go.type='button';go.onclick=()=>setMode('scale');const look=h('button','btn','Look at the diagram');look.type='button';look.onclick=()=>o.remove();act.append(go,look);card.append(act);
-  }else{
-    card.append(h('div','eyebrow','Round 2 complete'),h('h3','',p.revealed?'That is the design at scale':`Score ${p.score} / ${max} · ${p.misses} miss${p.misses===1?'':'es'} · ${fmt(secs)}`),h('p','','What changes between the rounds, and what is built:'));
-    const t=h('table','summary'),head=h('tr');['Concern','Lightweight (today)','At scale'].forEach(x=>head.append(h('th','',x)));t.append(head);
-    const rows=[['Storage','h2','postgres'],['Work queue','memQueue','dbQueue'],['Feed search','sqlSearch','pgFts'],['Agent definitions','registry','dbRegistry'],['Workflow coordination','coordinator','leaseCoordinator'],['Workers','workerPool','leasedWorkers']];
-    for(const[k,a,b]of rows){const tr=h('tr');tr.append(h('td','',k),cell(a),cell(b));t.append(tr);}
-    card.append(t,h('p','','Also designed for scale: a load balancer, stateless API replicas, a transactional outbox and object storage for evidence. Add each when measured load needs it.'));
-    const act=h('div','tools'),again=h('button','btn primary','Play again');again.type='button';again.onclick=()=>{S.light=fresh();S.scale=fresh();setMode('light');};
-    const look=h('button','btn','Look at the diagram');look.type='button';look.onclick=()=>o.remove();const doc=h('a','btn','Read design.md');doc.href='design.md';act.append(again,look,doc);card.append(act);
-  }
-  o.append(card);$('board').append(o);
+  const r=R(),p=P(),o=h('div','overlay'),card=h('div','done-card'),secs=Math.round((p.finished-(p.started||p.finished))/1000),max=r.slots.length*10;
+  card.append(h('span','eyebrow',(S.view==='light'?'Round 1':'Round 2')+' complete'),h('h3','',`Score ${p.score} / ${max} · ${p.misses} miss${p.misses===1?'':'es'} · ${fmt(secs)}`));
+  if(S.view==='light')card.append(h('p','','One jar, one file database, an in-process queue and a bounded worker pool: everything runs on a laptop with no other service, and every part is built.'),h('p','','The hard part of scaling is not the database. It is several copies of the app agreeing on who coordinates each workflow, who owns each run and who publishes each post.'));
+  else card.append(h('p','','Several copies of the app behind a load balancer, one shared PostgreSQL, and leases and an outbox so the copies agree. Most of this is designed, not built: add each part when measured load needs it.'));
+  const act=h('div','tools'),next=h('button','button primary',S.view==='light'?'Now scale it →':'See the full solution →');next.type='button';next.onclick=()=>S.view==='light'?setView('scale'):showSolution('scale');
+  const look=h('button','button','Look at my diagram');look.type='button';look.onclick=()=>o.remove();act.append(next,look);card.append(act);o.append(card);$('board').append(o);
 }
-function cell(id){const td=h('td');td.append(document.createTextNode(C[id].name+' '),h('span','tag '+C[id].status,C[id].status));return td;}
-function fmt(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
-function setMode(m){S.mode=m;selected=null;activeSlot=null;lastNote=null;$('board').querySelector('.overlay')?.remove();save();render();}
 
-document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>setMode(t.dataset.mode)));
+/* ---- solution: the finished diagram and a card per part ------------------------------------------------------ */
+function renderSolution(){
+  const key=S.sol,r=ROUNDS[key];
+  document.querySelectorAll('[data-sol]').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.sol===key)));
+  $('title').textContent='Solution';$('lede').textContent='Every part in place, with the requirement it meets and why it was chosen.';
+  $('sol-title').textContent=r.stage;$('sol-lede').textContent=r.lede;
+  drawDiagram($('sol-canvas'),key,{},true);
+  const cards=$('cards');cards.replaceChildren();
+  r.slots.forEach((s,i)=>{const c=C[s.answer],card=h('article','explain');card.id='why-'+s.id;card.dataset.slot=s.id;card.tabIndex=0;
+    const top=h('div','top');top.append(h('span','badge',String(i+1)),h('strong','',c.name),h('span','tag '+c.status,c.status));
+    card.append(top,h('p','req-line','Requirement: '+s.req),h('p','',c.good));
+    if(key==='light'&&c.next)card.append(h('p','next',c.next));
+    card.addEventListener('click',()=>focusPart(s.id,false));card.addEventListener('keydown',e=>{if(e.key==='Enter')focusPart(s.id,false);});
+    cards.append(card);});
+  for(const g of $('sol-canvas').querySelectorAll('[data-slot]'))g.addEventListener('click',()=>focusPart(g.dataset.slot,true));
+  // The palette's wrong options, with the reason each one does not fit this round.
+  const answers=new Set(r.slots.map(s=>s.answer)),rej=$('rejects');rej.replaceChildren();
+  rej.append(h('summary','','Options that do not fit, and why ('+r.palette.filter(id=>!answers.has(id)).length+')'));const ul=h('ul');
+  for(const id of r.palette.filter(id=>!answers.has(id))){const c=C[id],li=h('li');li.append(h('strong','',c.name+': '),document.createTextNode(c.no?.[key]||c.no?.any||''));ul.append(li);}
+  rej.append(ul);
+}
+function focusPart(slotId,scroll){
+  document.querySelectorAll('#sol-canvas .node.focus,.explain.focus').forEach(e=>e.classList.remove('focus'));
+  $('sol-canvas').querySelector(`[data-slot="${slotId}"]`)?.classList.add('focus');
+  const card=$('why-'+slotId);card?.classList.add('focus');if(scroll)card?.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function showSolution(key){S.sol=key;setView('solution');}
+function setView(v){S.view=v;selected=null;activeSlot=null;lastNote=null;$('board').querySelector('.overlay')?.remove();save();render();window.scrollTo({top:0});}
+
+document.querySelectorAll('[data-view]').forEach(t=>t.addEventListener('click',()=>{if(t.dataset.view==='solution')showSolution(S.view==='scale'?'scale':S.sol);else setView(t.dataset.view);}));
+document.querySelectorAll('[data-sol]').forEach(t=>t.addEventListener('click',()=>{S.sol=t.dataset.sol;save();render();}));
+$('see-solution').onclick=()=>showSolution(S.view);
 $('hint').onclick=()=>{const r=R(),p=P(),s=r.slots.find(x=>x.id===activeSlot&&!p.placed[x.id])||r.slots.find(x=>!p.placed[x.id]);if(!s)return;tick();activeSlot=s.id;
   if(!p.hints[s.id]){p.hints[s.id]=1;p.score=Math.max(0,p.score-2);save();}lastNote={kind:'',title:'Hint for gap '+(r.slots.indexOf(s)+1),body:[[s.hint],[s.req,'next']]};render();};
-$('reveal').onclick=()=>{const r=R(),p=P();for(const s of r.slots)p.placed[s.id]=s.answer;p.revealed=true;p.finished=p.finished||Date.now();p.started=p.started||p.finished;save();lastNote={kind:'good',title:'Answer shown',body:[['Select any filled box or requirement to read why it is there.']]};render();};
-$('reset').onclick=()=>{S[S.mode]=fresh();setMode(S.mode);};
-$('theme').onclick=()=>{const root=document.documentElement,dark=getComputedStyle(root).colorScheme==='dark';root.dataset.theme=dark?'light':'dark';render();};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){selected=null;lastNote=null;renderPalette();renderNote();}});
-setInterval(()=>{const p=P();const s=p.started?Math.round(((p.finished||Date.now())-p.started)/1000):0;$('clock').textContent=fmt(s);$('score').textContent=p.score;$('miss').textContent=p.misses;},500);
+$('reset').onclick=()=>{S[S.view]=fresh();setView(S.view);};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.view!=='solution'){selected=null;lastNote=null;renderPalette();renderNote();}});
+setInterval(()=>{if(S.view==='solution')return;const p=P();const s=p.started?Math.round(((p.finished||Date.now())-p.started)/1000):0;$('clock').textContent=fmt(s);$('score').textContent=p.score;$('miss').textContent=p.misses;},500);
 render();
 </script>
 </body>
