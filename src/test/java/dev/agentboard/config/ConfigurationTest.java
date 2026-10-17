@@ -46,9 +46,6 @@ class ConfigurationTest {
         props.setQueue("invalid");
         assertThatThrownBy(() -> new StartupChecks(props).afterPropertiesSet()).hasMessageContaining("board.queue");
         props.setQueue("memory");
-        props.setTimezone("Invalid/Timezone");
-        assertThatThrownBy(() -> new StartupChecks(props).afterPropertiesSet())
-                .isInstanceOf(java.time.DateTimeException.class);
     }
 
     @Test void resolvesOnlyValidPresentNonblankSecretNames() {

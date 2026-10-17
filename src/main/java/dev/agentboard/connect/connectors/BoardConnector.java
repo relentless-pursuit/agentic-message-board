@@ -6,7 +6,6 @@ import dev.agentboard.connect.With;
 import dev.agentboard.post.PostRepository;
 import dev.agentboard.post.PostView;
 import dev.agentboard.run.RunContext;
-import dev.agentboard.schedule.Schedule;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -35,7 +34,7 @@ public class BoardConnector implements Connector {
     @Override
     public Observation fetch(Map<String, Object> with, RunContext context) {
         String since = With.string(with, "since", "24h");
-        Instant from = Instant.now().minus(Schedule.parseEvery(since));
+        Instant from = Instant.now().minus(With.duration(since));
         String self = context.agent().handle();
         List<PostView> recent = posts.since(from, 200).stream()
                 .filter(p -> !p.agentHandle().equals(self) && p.replyTo() == null)

@@ -10,7 +10,8 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.lang.management.ManagementFactory;
+import java.util.UUID;
 
 /**
  * Diagram box "Worker pool": N threads, like Jenkins executors. Each one takes the next run from
@@ -26,17 +27,16 @@ public class WorkerPool implements SmartLifecycle {
     private final JobQueue queue;
     private final AgentRunner runner;
     private final RunRepository runs;
-    private final DbLock lock;
+    /** Names this copy of the board in run records, so a run can be traced to the process that did it. */
+    private final String owner = ManagementFactory.getRuntimeMXBean().getName() + "/" + UUID.randomUUID().toString().substring(0, 8);
     private final int size;
     private final List<Thread> threads = new ArrayList<>();
-    private final AtomicInteger busy = new AtomicInteger();
     private volatile boolean running;
 
-    public WorkerPool(JobQueue queue, AgentRunner runner, RunRepository runs, DbLock lock, BoardProperties props) {
+    public WorkerPool(JobQueue queue, AgentRunner runner, RunRepository runs, BoardProperties props) {
         this.queue = queue;
         this.runner = runner;
         this.runs = runs;
-        this.lock = lock;
         this.size = Math.max(1, props.getWorkers().getThreads());
     }
 
@@ -48,7 +48,7 @@ public class WorkerPool implements SmartLifecycle {
             runs.queuedIds(10_000).forEach(queue::submit);
         }
         for (int i = 1; i <= size; i++) {
-            String name = lock.owner() + "#" + i;
+            String name = owner + "#" + i;
             Thread t = new Thread(() -> loop(name), "agent-worker-" + i);
             t.setDaemon(true);
             t.start();
@@ -62,12 +62,7 @@ public class WorkerPool implements SmartLifecycle {
             try {
                 Long id = queue.poll(Duration.ofSeconds(1));
                 if (id == null) continue;
-                busy.incrementAndGet();
-                try {
-                    runner.execute(id, name);
-                } finally {
-                    busy.decrementAndGet();
-                }
+                runner.execute(id, name);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
@@ -94,13 +89,5 @@ public class WorkerPool implements SmartLifecycle {
     @Override
     public boolean isRunning() {
         return running;
-    }
-
-    public int size() {
-        return size;
-    }
-
-    public int busy() {
-        return busy.get();
     }
 }

@@ -76,20 +76,14 @@ public record AgentDefinition(
         return observe == null ? List.of() : observe.stream().map(ObserveStep::connector).toList();
     }
 
+    /** Empty: the agent runs when a workflow or a person starts it. on_event: hook.received: a signed webhook starts it. */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    public record Trigger(
-            String every,
-            String daily,
-            String weekly,
-            @JsonProperty("on_event") String onEvent,
-            String filter) {
+    public record Trigger(@JsonProperty("on_event") String onEvent) {
+
+        public static final String HOOK_RECEIVED = "hook.received";
 
         public String describe() {
-            if (every != null) return "every " + every;
-            if (daily != null) return "daily " + daily;
-            if (weekly != null) return "weekly " + weekly;
-            if (onEvent != null) return "on " + onEvent + (filter == null ? "" : " (" + filter + ")");
-            return "manual";
+            return onEvent == null ? "manual" : "on " + onEvent;
         }
     }
 

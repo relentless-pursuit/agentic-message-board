@@ -14,7 +14,7 @@ Open `http://127.0.0.1:8087/`. No board token is needed: the port is published o
 
 ## Start with Java
 
-Requires Java 17+ and network access for the first build. Put `OPENAI_API_KEY` in `.env` (or export it in your shell), then:
+Requires Java 17+ and network access for the first build. The first start creates `.env` from `.env.example`; put your key on its `OPENAI_API_KEY=` line (or export it in your shell) and start again. Without a key, **Start run** stays disabled.
 
 ```sh
 ./scripts/start-local.sh
@@ -48,9 +48,11 @@ A failure prints the step that broke and saves `target/smoke/failure.png` and `t
 
 ## Create your team
 
-Ten reusable skills are available under **Agents**. **Create agent** starts with a dropdown of them (or create a new skill), then asks for a purpose, a name, an OpenAI model and an input source. Add agents in **Workflows** and press **Connect** on a card to send its result to another agent; workflows save automatically.
+Only `OPENAI_API_KEY` is required. On first start the board adds the connectors that need no key: **GitHub docs (DeepWiki)**, a public hosted server, and **Web fetch**, if `uv` is installed. Web fetch can read public GitHub data through `api.github.com`. Add a GitHub PAT on **Connectors** for the full GitHub server (46 tools).
 
-For a ready-made team of ten agents and a ten-agent workflow, start with `bash ./scripts/start-local.sh --demo` (Docker: see `docker-compose.yml`). Agents, skills and workflows are data: a skill is a JSON record, an agent a YAML file or a form, a workflow a JSON graph. See [skills, agents and workflows](docs/reusable-skills.md).
+**Create agent**: describe the task in plain words ("give me the latest 3 PRs in checkstyle") and tick the connectors it may use. **Set up agent** sends one request to `BOARD_OPENAI_SETUP_MODEL` (default gpt-5.4-mini, about $0.003). That request drafts the name, step-by-step instructions and the smallest set of tools. It pre-fills what the agent works on with its best guess ("checkstyle/checkstyle") and lists the choices it made instead of asking. Correct anything, then create. A value you clear is asked for in the run dialog, so a run cannot start without it. **Set it up myself** skips the model request. Agents are listed under **Agents** with Edit and Delete. Delete also removes the agent from saved workflows; past runs stay. Add agents in **Workflows** and press **Connect** on a card to send its result to another agent; workflows save automatically.
+
+For a ready-made team of ten agents and a ten-agent workflow, start with `bash ./scripts/start-local.sh --demo` (Docker: see `docker-compose.yml`). The examples are read-only; agents you create are saved to `agents-local/`. Agents, skills and workflows are data: a skill is a JSON record, an agent a YAML file or a form, a workflow a JSON graph. See [skills, agents and workflows](docs/reusable-skills.md).
 
 ## Evidence and controls
 
@@ -66,3 +68,13 @@ For a ready-made team of ten agents and a ten-agent workflow, start with `bash .
 - [Skills, agents and workflows](docs/reusable-skills.md): how to use and extend them.
 - [Deployment and on-prem](docs/scale.md): Docker, PostgreSQL, running on a company server.
 - [What has been verified](docs/validation.md): and what has not.
+
+### Connect GitHub from the dashboard
+
+Open **Connectors → Add connector → GitHub**, paste a GitHub PAT in **Access token / GitHub PAT**, and choose **Save and test**. The connection is checked immediately; no restart or `.env` edit is required. On edit, leave the password field blank to keep the saved token. Authentication failures are displayed on the connector.
+
+Dashboard tokens are encrypted with AES-GCM under `data/secrets/connectors/`, using an owner-only local encryption key and owner-only files. Connector definitions and API responses contain a credential reference and a saved/not-saved indicator. Keep the persistent data volume private and include the encryption key when backing it up. Deleting a connector removes its saved credential. Changing the server address requires entering the token again before it can be used on that address. Environment references remain available under Advanced headers and for local server environments.
+
+### Connector tools and missing information
+
+Skills select tools from configured MCP servers on the Connectors page. Built-in read tools and the agent input-source picker are retired. Existing skills keep their instructions and MCP selections; retired built-in tool selections are removed at startup. New workflow executions use the workflow request and completed upstream results as context. A model can request more information by returning no findings and explicit uncertainties; this is shown as **Needs information**, without inventing evidence. Historical failed executions remain inspectable.

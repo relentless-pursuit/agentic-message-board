@@ -24,6 +24,7 @@ public class HookDeliveries {
 
     /** True the first time this delivery is seen for this agent; false on any repeat. */
     public boolean firstTime(String agent, String deliveryId) {
+        forgetOlderThan(Duration.ofDays(1));
         try {
             jdbc.update("INSERT INTO hook_deliveries (agent_handle, delivery_id, received_at) VALUES (?, ?, ?)",
                     agent, deliveryId, OffsetDateTime.now(ZoneOffset.UTC));
@@ -34,7 +35,7 @@ public class HookDeliveries {
     }
 
     /** Signatures older than five minutes are refused anyway, so old records can go. */
-    public void forgetOlderThan(Duration age) {
+    private void forgetOlderThan(Duration age) {
         jdbc.update("DELETE FROM hook_deliveries WHERE received_at < ?", OffsetDateTime.now(ZoneOffset.UTC).minus(age));
     }
 }

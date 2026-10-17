@@ -3,7 +3,6 @@ package dev.agentboard.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +17,8 @@ public class BoardProperties {
 
     /** Folder with one YAML file per agent. */
     private String agentsDir = "agents-local";
+    /** Optional read-only folder of example agents (examples/agents). Agents created in the UI are saved to agentsDir, never here. */
+    private String exampleAgentsDir = "";
     /** Optional folder with one JSON workflow per file (see examples/workflows). Missing workflows are added at start-up. */
     private String workflowsDir = "";
     /** Folder for local files such as the initial admin token. */
@@ -26,8 +27,6 @@ public class BoardProperties {
     private String role = "all";
     /** memory = in-process queue (one process); database = runs table, shared by many processes. */
     private String queue = "memory";
-    /** Time zone used for "daily" and "weekly" triggers. */
-    private String timezone = ZoneId.systemDefault().getId();
     /** The address people use to open the board; used for links in webhooks. */
     private String publicUrl = "http://localhost:8080";
     /**
@@ -37,16 +36,18 @@ public class BoardProperties {
      */
     private String auth = "token";
 
-    private final Scheduler scheduler = new Scheduler();
     private final Workers workers = new Workers();
     private final Openai openai = new Openai();
     private String reasoningProvider = "openai";
     private final Http http = new Http();
     private final Limits limits = new Limits();
     private final Webhooks webhooks = new Webhooks();
+    private final Mcp mcp = new Mcp();
 
     public String getAgentsDir() { return agentsDir; }
     public void setAgentsDir(String agentsDir) { this.agentsDir = agentsDir; }
+    public String getExampleAgentsDir() { return exampleAgentsDir; }
+    public void setExampleAgentsDir(String exampleAgentsDir) { this.exampleAgentsDir = exampleAgentsDir; }
     public String getWorkflowsDir() { return workflowsDir; }
     public void setWorkflowsDir(String workflowsDir) { this.workflowsDir = workflowsDir; }
     public String getDataDir() { return dataDir; }
@@ -55,14 +56,11 @@ public class BoardProperties {
     public void setRole(String role) { this.role = role; }
     public String getQueue() { return queue; }
     public void setQueue(String queue) { this.queue = queue; }
-    public String getTimezone() { return timezone; }
-    public void setTimezone(String timezone) { this.timezone = timezone; }
     public String getPublicUrl() { return publicUrl; }
     public void setPublicUrl(String publicUrl) { this.publicUrl = publicUrl; }
     public String getAuth() { return auth; }
     public void setAuth(String auth) { this.auth = auth; }
     public boolean openAccess() { return "open".equals(auth); }
-    public Scheduler getScheduler() { return scheduler; }
     public Workers getWorkers() { return workers; }
     public Openai getOpenai() { return openai; }
     public String getReasoningProvider() { return reasoningProvider; }
@@ -70,40 +68,30 @@ public class BoardProperties {
     public Http getHttp() { return http; }
     public Limits getLimits() { return limits; }
     public Webhooks getWebhooks() { return webhooks; }
+    public Mcp getMcp() { return mcp; }
 
-    public ZoneId zone() { return ZoneId.of(timezone); }
     public boolean runsWorkers() { return !"web".equals(role); }
-
-    public static class Scheduler {
-        private boolean enabled = true;
-        private Duration tick = Duration.ofSeconds(5);
-        /** A missed daily/weekly run still happens if the board comes back within this time. */
-        private Duration grace = Duration.ofHours(1);
-        /** A run still "running" after this long is marked failed (its worker died). */
-        private Duration staleRunAfter = Duration.ofMinutes(10);
-        private int batchSize = 200;
-        /** New daily/weekly agents wait this long before their first run, so there is something to summarise. */
-        private Duration firstRunDelayForSummaries = Duration.ofMinutes(2);
-
-        public boolean isEnabled() { return enabled; }
-        public void setEnabled(boolean enabled) { this.enabled = enabled; }
-        public Duration getTick() { return tick; }
-        public void setTick(Duration tick) { this.tick = tick; }
-        public Duration getGrace() { return grace; }
-        public void setGrace(Duration grace) { this.grace = grace; }
-        public Duration getStaleRunAfter() { return staleRunAfter; }
-        public void setStaleRunAfter(Duration staleRunAfter) { this.staleRunAfter = staleRunAfter; }
-        public int getBatchSize() { return batchSize; }
-        public void setBatchSize(int batchSize) { this.batchSize = batchSize; }
-        public Duration getFirstRunDelayForSummaries() { return firstRunDelayForSummaries; }
-        public void setFirstRunDelayForSummaries(Duration firstRunDelayForSummaries) { this.firstRunDelayForSummaries = firstRunDelayForSummaries; }
-    }
 
     public static class Workers {
         private int threads = 4;
 
         public int getThreads() { return threads; }
         public void setThreads(int threads) { this.threads = threads; }
+    }
+
+    /** MCP connectors: which programs a local (stdio) connector may start, and how long to wait for a server. */
+    public static class Mcp {
+        /** A local connector runs a program on this machine, so only these launchers are accepted. */
+        private List<String> allowedCommands = new ArrayList<>(List.of("npx", "uvx", "docker"));
+        private Duration connectTimeout = Duration.ofSeconds(90);
+        private Duration requestTimeout = Duration.ofSeconds(60);
+
+        public List<String> getAllowedCommands() { return allowedCommands; }
+        public void setAllowedCommands(List<String> allowedCommands) { this.allowedCommands = allowedCommands; }
+        public Duration getConnectTimeout() { return connectTimeout; }
+        public void setConnectTimeout(Duration connectTimeout) { this.connectTimeout = connectTimeout; }
+        public Duration getRequestTimeout() { return requestTimeout; }
+        public void setRequestTimeout(Duration requestTimeout) { this.requestTimeout = requestTimeout; }
     }
 
     public static class Openai {
@@ -120,6 +108,10 @@ public class BoardProperties {
         private double budgetUsd = 1.0;
         private Duration timeout = Duration.ofSeconds(45);
         private Duration requestSpacing = Duration.ofSeconds(2);
+        /** Model that drafts new agents from a task description (one request per draft); a stronger one pays off here. */
+        private String setupModel = "gpt-5.4-mini";
+        public String getSetupModel() { return setupModel; }
+        public void setSetupModel(String v) { setupModel = v; }
         public String getModel() { return model; }
         public void setModel(String v) { model = v; }
         public List<ModelPrice> getModels() { return models; }
@@ -201,8 +193,6 @@ public class BoardProperties {
         private int hookRequestsPerMinute = 60;
         /** Bad signatures allowed per caller address per minute before it is turned away. */
         private int hookFailuresPerMinute = 30;
-        /** Stops agents from triggering each other forever. */
-        private int maxEventDepth = 3;
         private int maxRequestBytes = 65_536;
 
         public int getPostsPerMinute() { return postsPerMinute; }
@@ -211,8 +201,6 @@ public class BoardProperties {
         public void setHookRequestsPerMinute(int hookRequestsPerMinute) { this.hookRequestsPerMinute = hookRequestsPerMinute; }
         public int getHookFailuresPerMinute() { return hookFailuresPerMinute; }
         public void setHookFailuresPerMinute(int hookFailuresPerMinute) { this.hookFailuresPerMinute = hookFailuresPerMinute; }
-        public int getMaxEventDepth() { return maxEventDepth; }
-        public void setMaxEventDepth(int maxEventDepth) { this.maxEventDepth = maxEventDepth; }
         public int getMaxRequestBytes() { return maxRequestBytes; }
         public void setMaxRequestBytes(int maxRequestBytes) { this.maxRequestBytes = maxRequestBytes; }
     }

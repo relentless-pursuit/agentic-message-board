@@ -9,6 +9,8 @@ FROM eclipse-temurin:17-jre-jammy
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/* && useradd --create-home --uid 1001 board
 WORKDIR /app
+# uvx starts local MCP servers such as the web fetch connector (no key needed); uv downloads its own Python.
+COPY --from=ghcr.io/astral-sh/uv:0.8 /uv /uvx /usr/local/bin/
 COPY --from=build /src/target/agent-board.jar app.jar
 COPY examples ./examples
 RUN mkdir -p data/runtime agents-local && chown -R board:board /app

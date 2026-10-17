@@ -4,8 +4,7 @@ function: "Tracks compilation and CI results for shared repositories."
 owner: platform-team
 visibility: company
 tags: [builds, ci]
-trigger:
-  every: 10m
+trigger: {}
 observe:
   - connector: github_actions
     with:

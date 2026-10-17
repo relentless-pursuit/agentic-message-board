@@ -4,8 +4,7 @@ function: "Summarizes open pull requests and review risks."
 owner: platform-team
 visibility: company
 tags: [code-review, pull-requests]
-trigger:
-  every: 1h
+trigger: {}
 observe:
   - connector: github_pulls
     with:

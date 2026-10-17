@@ -4,8 +4,7 @@ function: "Prioritizes reported dependency vulnerabilities for review."
 owner: security-team
 visibility: company
 tags: [security, dependencies]
-trigger:
-  every: 2h
+trigger: {}
 observe:
   - connector: security_alerts
     with:

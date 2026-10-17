@@ -2,7 +2,6 @@ package dev.agentboard.connect;
 
 import dev.agentboard.config.BoardProperties;
 import dev.agentboard.registry.AgentDefinition;
-import dev.agentboard.schedule.Schedule;
 import org.springframework.stereotype.Component;
 import java.util.*;
 
@@ -15,7 +14,7 @@ public class ConnectorCatalog {
     private static final String REPO="[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+";
     public ConnectorCatalog(ConnectorRegistry registry,SafeHttp http,BoardProperties props){this.registry=registry;this.http=http;this.props=props;}
     public List<Entry> list(){return registry.names().stream().map(this::describe).toList();}
-    public Map<String,Object> options(){return Map.of("connectors",list(),"allowedHosts",props.getHttp().getAllowedHosts(),"schedulerEnabled",props.getScheduler().isEnabled());}
+    public Map<String,Object> options(){return Map.of("connectors",list(),"allowedHosts",props.getHttp().getAllowedHosts());}
     private Entry describe(String name){return switch(name){
         case "github_issues" -> entry(name,"List GitHub issues","List open issues and their links. Pull requests are excluded. Private repositories need a GitHub connection on the server.",
                 field("repo","Repository","repo",true,"owner/repository","Enter owner/repository or paste its GitHub URL.","",0,0),number("limit","Maximum issues",10,25));
@@ -32,10 +31,9 @@ public class ConnectorCatalog {
         case "board" -> entry(name,"Agent Board posts","Source is this board's recent posts. No external URL is required.",
                 field("since","Look-back period","duration",true,"24h","For example 30m, 24h or 7d.","24h",0,0));
         case "workflow_input" -> entry(name,"Workflow input","Reads this workflow run's source and completed upstream results. No external connection.");
-        case "event" -> new Entry(name,"React to a board event","Choose the board event to read. No source URL is required.",true,List.of(),List.of("post.created","agent.registered"));
-        default -> new Entry(name,name,"This connector has no registration form schema. Configure it through YAML.",false,List.of(),List.of());
+        default -> new Entry(name,name,"This connector has no registration form schema. Configure it through YAML.",false,List.of());
     };}
-    private static Entry entry(String name,String label,String description,Field...fields){return new Entry(name,label,description,true,List.of(fields),List.of());}
+    private static Entry entry(String name,String label,String description,Field...fields){return new Entry(name,label,description,true,List.of(fields));}
     private static Field field(String key,String label,String type,boolean required,String placeholder,String help,String defaultValue,int min,int max){return new Field(key,label,type,required,placeholder,help,defaultValue,min,max);}
     private static Field number(String key,String label,int value,int max){return field(key,label,"number",false,"","",String.valueOf(value),1,max);}
     public void validate(AgentDefinition agent){
@@ -66,19 +64,14 @@ public class ConnectorCatalog {
                             else http.checked(s);
                         }
                     }
-                    case "duration" -> {if(!(value instanceof String) || !text.matches("[1-9][0-9]*[smhd]"))throw new IllegalArgumentException(field.label()+" must look like 30m, 24h or 7d.");Schedule.parseEvery(text);}
+                    case "duration" -> {if(!(value instanceof String) || !text.matches("[1-9][0-9]*[smhd]"))throw new IllegalArgumentException(field.label()+" must look like 30m, 24h or 7d.");With.duration(text);}
                     default -> throw new IllegalArgumentException("Unsupported connector field.");
                 }
             }
             if(step.connector().startsWith("github_"))http.checked("https://api.github.com/");
             if(step.connector().equals("hackernews"))http.checked("https://hacker-news.firebaseio.com/");
-            // Signed hooks remain configurable through the existing API/YAML secret settings.
-            // The simple form offers events that need no separate inbound-secret setup.
-            if(step.connector().equals("event") && (agent.trigger().onEvent()==null ||
-                    (!entry.events().contains(agent.trigger().onEvent()) && !"hook.received".equals(agent.trigger().onEvent()))))
-                throw new IllegalArgumentException("Choose a supported board event for the event connector.");
         }
     }
-    public record Entry(String name,String label,String description,boolean formSupported,List<Field> fields,List<String> events){}
+    public record Entry(String name,String label,String description,boolean formSupported,List<Field> fields){}
     public record Field(String key,String label,String type,boolean required,String placeholder,String help,String defaultValue,int min,int max){}
 }

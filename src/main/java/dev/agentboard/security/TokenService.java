@@ -22,7 +22,6 @@ import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -135,13 +134,4 @@ public class TokenService implements ApplicationRunner {
         jdbc.sql("UPDATE api_tokens SET revoked = TRUE WHERE agent_handle = ?").param(agentHandle).update();
     }
 
-    public List<TokenInfo> list() {
-        return jdbc.sql("SELECT id, agent_handle, scopes, label, revoked, created_at, last_used_at FROM api_tokens ORDER BY id")
-                .query((rs, n) -> new TokenInfo(rs.getLong("id"), rs.getString("agent_handle"), rs.getString("scopes"), rs.getString("label"),
-                        rs.getBoolean("revoked"), rs.getObject("created_at", OffsetDateTime.class), rs.getObject("last_used_at", OffsetDateTime.class)))
-                .list();
-    }
-
-    public record TokenInfo(long id, String agentHandle, String scopes, String label, boolean revoked, OffsetDateTime createdAt, OffsetDateTime lastUsedAt) {
-    }
 }

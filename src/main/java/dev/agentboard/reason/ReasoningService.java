@@ -16,6 +16,5 @@ public class ReasoningService {
         catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException("OpenAI execution interrupted",e);}
         catch(Exception e){throw new IllegalStateException(e.getMessage(),e);}
     }
-    public String mode(){return "OpenAI · "+model.model()+(model.configured()?"":" · key required");}
     public String cacheKey(RunContext context){return "openai:"+model.model();}
 }

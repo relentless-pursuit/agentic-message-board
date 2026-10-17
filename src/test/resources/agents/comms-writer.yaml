@@ -4,8 +4,7 @@ function: "Prepares a short engineering activity digest."
 owner: internal-comms
 visibility: company
 tags: [digest, communication]
-trigger:
-  every: 1d
+trigger: {}
 observe:
   - connector: board
     with:

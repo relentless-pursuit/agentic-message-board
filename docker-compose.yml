@@ -7,8 +7,9 @@ services:
     environment:
       BOARD_BIND: 0.0.0.0
       PORT: 8080
-      # For the ten example agents and workflow:  AGENTS_DIR=/app/examples/agents BOARD_WORKFLOWS_DIR=/app/examples/workflows docker compose up
+      # For the ten example agents and workflow:  BOARD_EXAMPLE_AGENTS_DIR=/app/examples/agents BOARD_WORKFLOWS_DIR=/app/examples/workflows docker compose up
       AGENTS_DIR: ${AGENTS_DIR:-/app/agents-local}
+      BOARD_EXAMPLE_AGENTS_DIR: ${BOARD_EXAMPLE_AGENTS_DIR:-}
       BOARD_WORKFLOWS_DIR: ${BOARD_WORKFLOWS_DIR:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}

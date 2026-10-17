@@ -71,7 +71,7 @@ async function step(name, fn) {
       await page.goto(base);
       await page.locator('#feed-filter').waitFor();
       assert.match(await page.title(), /Agent Board/);
-      assert.equal(await page.locator('nav[aria-label="Workspace"] a').count(), 4);
+      assert.equal(await page.locator('nav[aria-label="Workspace"] a').count(), 5);
     });
 
     await step('Removed controls are gone (save/restore view, save/template, example loaders)', async () => {
@@ -151,12 +151,10 @@ async function step(name, fn) {
       await page.locator('#agent-dialog [data-close]').first().click();
     });
 
-    await step('Input sources offered when creating an agent come from the server', async () => {
-      const served = (await api('/connectors')).connectors.filter(c => (c.formSupported || c.name === 'workflow_input') && !(c.events || []).length).map(c => c.label);
+    await step('Agents use workflow context without a source selector', async () => {
       await page.locator('#new-agent').click();
-      const shown = await page.locator('#source-choices button').allTextContents();
-      assert.deepEqual([...shown].sort(), [...served].sort(), 'page and /api/connectors disagree');
-      assert.ok(shown.length >= 4, 'expected several input sources, got ' + shown);
+      assert.equal(await page.locator('#source-choices').count(), 0);
+      assert.equal(await page.locator('#source-settings').count(), 0);
       await page.locator('#agent-dialog [data-close]').first().click();
     });
 
@@ -179,19 +177,11 @@ async function step(name, fn) {
       assert.match(await page.locator('#agent-library .agent-card').filter({ hasText: names[1] }).textContent(), new RegExp('Model: ' + models[1]));
     });
 
-    await step('An agent can read an RSS feed through the generic input form', async () => {
-      await page.locator('#new-agent').click();
-      await page.locator('#agent-skill').selectOption({ label: skills[0] });
-      await page.locator('#agent-name').fill('Smoke Feed Agent');
-      await page.locator('#agent-purpose').fill('Read a feed');
-      await page.locator('#source-choices button', { hasText: 'RSS' }).click();
-      await page.locator('#source-settings textarea[data-key="feeds"]').fill('https://github.blog/changelog/feed/');
-      await page.locator('#agent-form button[type=submit]').click();
-      await page.locator('#agent-dialog').waitFor({ state: 'hidden' });
-      const feed = (await api('/workflows/agents')).find(a => a.agent.name === 'Smoke Feed Agent');
-      assert.ok(feed, 'the feed agent was not created');
-      assert.deepEqual(feed.agent.connectors, ['rss']);
-      assert.equal(feed.skill, (await api('/workflows/skills')).find(k => k.name === skills[0]).id);
+    await step('Created agents receive workflow context automatically', async () => {
+      const made = (await api('/workflows/agents')).filter(a => names.includes(a.agent.name));
+      for (const item of made) assert.deepEqual(item.agent.connectors, ['workflow_input']);
+      const skills = await api('/workflows/skills');
+      for (const skill of skills) assert.ok((skill.permittedTools || []).every(t => t.includes('__')));
     });
 
     await step('"Create agent with this skill" preselects that skill', async () => {
@@ -275,8 +265,7 @@ async function step(name, fn) {
       assert.match(label, /OpenAI/);
       assert.ok(models.slice(0, 2).every(m => label.includes(m)), 'run dialog should name the models in use: ' + label);
       const keys = await page.locator('#run-params input').evaluateAll(els => els.map(e => e.dataset.key + '=' + e.value));
-      assert.ok(keys.includes('repository='), 'the repository field should be asked for and start empty: ' + keys);
-      assert.ok(keys.every(k => k.endsWith('=')), 'no run parameter may be pre-filled: ' + keys);
+      assert.deepEqual(keys, [], 'MCP tasks should use the workflow request instead of built-in source fields');
       await page.locator('#run-dialog [data-close]').click();
     });
 
@@ -288,7 +277,7 @@ async function step(name, fn) {
 
     await step('Every page fits a phone screen (390px, no sideways scrolling)', async () => {
       await page.setViewportSize({ width: 390, height: 844 });
-      for (const hash of ['feed', 'agents', 'workflows', 'runs']) {
+      for (const hash of ['feed', 'agents', 'connectors', 'workflows', 'runs']) {
         await page.goto(base + '/#' + hash);
         await page.waitForTimeout(400);
         const fits = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);

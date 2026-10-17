@@ -21,10 +21,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import dev.agentboard.config.BoardProperties;
-import dev.agentboard.schedule.Schedule;
-import dev.agentboard.event.AgentRegisteredEvent;
-import org.springframework.context.ApplicationEventPublisher;
-import java.time.Instant;
 
 /**
  * Diagram box "Agent Registry": knows every agent. At start-up it syncs agents/*.yaml into
@@ -41,20 +37,17 @@ public class AgentRegistry implements ApplicationRunner {
     private final AgentRepository repository;
     private final ObjectMapper json;
     private final Path agentsDir;
-    private final BoardProperties props;
-    private final ApplicationEventPublisher events;
+    private final Path exampleAgentsDir;
     private final dev.agentboard.connect.ConnectorCatalog connectors;
-    private volatile List<AgentFileLoader.LoadError> lastErrors = List.of();
 
     public AgentRegistry(AgentFileLoader loader, AgentRepository repository, ObjectMapper json,
-                         @Value("${board.agents-dir}") String agentsDir, BoardProperties props, ApplicationEventPublisher events,
+                         @Value("${board.agents-dir}") String agentsDir, BoardProperties props,
                          dev.agentboard.connect.ConnectorCatalog connectors) {
         this.loader = loader;
         this.repository = repository;
         this.json = json;
         this.agentsDir = Path.of(agentsDir);
-        this.props = props;
-        this.events = events;
+        this.exampleAgentsDir = props.getExampleAgentsDir().isBlank() ? null : Path.of(props.getExampleAgentsDir());
         this.connectors = connectors;
     }
 
@@ -64,10 +57,9 @@ public class AgentRegistry implements ApplicationRunner {
     }
 
     public synchronized void reloadFiles() {
-        AgentFileLoader.LoadResult result = loader.load(agentsDir);
+        AgentFileLoader.LoadResult result = withExamples(loader.load(agentsDir));
         for (AgentDefinition agent : result.agents()) {
             repository.upsert(agent, "file", toJson(agent));
-            initializeSchedule(agent);
         }
         Set<String> present = result.agents().stream().map(AgentDefinition::handle).collect(Collectors.toSet());
         // A missing folder or malformed definition must not erase existing registrations.
@@ -75,7 +67,18 @@ public class AgentRegistry implements ApplicationRunner {
         if (removed > 0) {
             log.info("{} file-based agents no longer have a file and were removed from the board", removed);
         }
-        lastErrors = result.errors();
+    }
+
+    /** Adds the read-only example agents; an agent saved in agentsDir wins over an example with the same handle. */
+    private AgentFileLoader.LoadResult withExamples(AgentFileLoader.LoadResult own) {
+        if (exampleAgentsDir == null) return own;
+        AgentFileLoader.LoadResult examples = loader.load(exampleAgentsDir);
+        Set<String> handles = own.agents().stream().map(AgentDefinition::handle).collect(Collectors.toSet());
+        List<AgentDefinition> agents = new java.util.ArrayList<>(own.agents());
+        examples.agents().stream().filter(a -> !handles.contains(a.handle())).forEach(agents::add);
+        List<AgentFileLoader.LoadError> errors = new java.util.ArrayList<>(own.errors());
+        errors.addAll(examples.errors());
+        return new AgentFileLoader.LoadResult(agents, errors);
     }
 
     public Page<AgentView> list(String query, String owner, int limit, int offset) {
@@ -97,14 +100,6 @@ public class AgentRegistry implements ApplicationRunner {
                 }));
     }
 
-    public List<AgentRepository.OwnerCount> owners() {
-        return repository.owners();
-    }
-
-    public List<AgentFileLoader.LoadError> loadErrors() {
-        return lastErrors;
-    }
-
     public AgentDefinition parse(String definitionJson) { return json.readValue(definitionJson, AgentDefinition.class); }
     public Optional<AgentDefinition> definition(String handle) { return repository.findDefinitionJson(handle).map(this::parse); }
     /** Definitions of all active agents, whether they came from a YAML file or from the UI. */
@@ -119,15 +114,7 @@ public class AgentRegistry implements ApplicationRunner {
         if (!problems.isEmpty()) throw new InvalidAgentException(problems);
         if (view(agent.handle()).isPresent()) throw new ResponseStatusException(HttpStatus.CONFLICT, "That agent handle is already registered");
         repository.upsert(agent, "external", toJson(agent));
-        AgentView result = view(agent.handle()).orElseThrow();
-        events.publishEvent(new AgentRegisteredEvent(result));
-        return result;
-    }
-
-    private void initializeSchedule(AgentDefinition agent) {
-        if (!Schedule.isTimed(agent.trigger())) { repository.setNextRun(agent.handle(), null); return; }
-        Schedule.firstRun(agent.handle(), agent.trigger(), Instant.now(), props.getScheduler().getFirstRunDelayForSummaries())
-                .ifPresent(next -> repository.initializeNextRun(agent.handle(), next));
+        return view(agent.handle()).orElseThrow();
     }
 
     public static class InvalidAgentException extends IllegalArgumentException {
@@ -160,6 +147,23 @@ public class AgentRegistry implements ApplicationRunner {
         }
         reloadFiles();
         return get(agent.handle()).orElseThrow(() -> new IllegalStateException("Agent did not load"));
+    }
+
+    /** True for agents saved in the agents folder (made on this board); examples and API registrations are not. */
+    public boolean deletable(String handle) {
+        return handle != null && handle.matches("[a-z0-9][a-z0-9-]{0,63}") && Files.isRegularFile(agentsDir.resolve(handle + ".yaml"));
+    }
+
+    /** Removes an agent saved in the agents folder. Its runs and posts stay; example agents are read-only. */
+    public synchronized void delete(String handle) {
+        if (handle == null || !handle.matches("[a-z0-9][a-z0-9-]{0,63}")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid agent handle");
+        Path file = agentsDir.resolve(handle + ".yaml");
+        if (!Files.isRegularFile(file)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only agents created on this board can be deleted; example agents are read-only");
+        }
+        try { Files.delete(file); }
+        catch (IOException e) { throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not delete the agent file"); }
+        repository.deactivate(handle);
     }
 
     private String toJson(AgentDefinition agent) {

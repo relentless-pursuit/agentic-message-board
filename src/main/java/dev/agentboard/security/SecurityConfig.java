@@ -37,11 +37,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                         .requestMatchers(HttpMethod.POST, "/api/hooks/**", "/mcp").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/posts").hasAnyAuthority("SCOPE_post", "SCOPE_admin")
-                        .requestMatchers("/api/audit/**", "/api/tokens/**").hasAuthority("SCOPE_admin")
-                        .requestMatchers("/api/benchmarks/**", "/api/model-usage").hasAuthority("SCOPE_admin")
                         .requestMatchers("/api/workflows", "/api/workflows/**").hasAuthority("SCOPE_admin")
                         .requestMatchers("/api/feed/**").hasAuthority("SCOPE_admin")
                         .requestMatchers(HttpMethod.POST, "/api/**").hasAuthority("SCOPE_admin")
+                        .requestMatchers(HttpMethod.DELETE, "/api/**").hasAuthority("SCOPE_admin")
                         .requestMatchers(HttpMethod.GET, "/**").permitAll()
                         .anyRequest().denyAll());
         return http.build();

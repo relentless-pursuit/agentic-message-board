@@ -1,9 +1,11 @@
 package dev.agentboard.reason;
 
 import dev.agentboard.config.BoardProperties;
-import dev.agentboard.connect.Observation;
 import dev.agentboard.registry.AgentDefinition;
-import dev.agentboard.run.RunContext;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 import java.net.URI;
@@ -14,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-/** Budgeted Responses API transport. AgentModelRuntime owns the bounded read-tool loop. */
+/** Budgeted OpenAI access through Spring AI, plus the model list and prices. AgentModelRuntime owns the tool loop. */
 @Component
 public class OpenAiReasoner {
     private final BoardProperties.Openai config;
@@ -42,7 +44,6 @@ public class OpenAiReasoner {
         if(wait>0) Thread.sleep(wait);
         nextRequest=System.currentTimeMillis()+config.getRequestSpacing().toMillis();
     }
-    public Map<String,Object> preflight() throws Exception { return preflight(model()); }
     /** Checks the key and that the account can use this model, without spending tokens. */
     public Map<String,Object> preflight(String modelId) throws Exception {
         if(!configured())throw new IllegalStateException("OPENAI_API_KEY is required on the server.");
@@ -52,53 +53,49 @@ public class OpenAiReasoner {
         if(response.statusCode()!=200)throw new IllegalStateException("OpenAI model preflight failed for "+modelId+" (HTTP "+response.statusCode()+"). Check OPENAI_API_KEY and that your account can use this model. No model was substituted.");
         return Map.of("available",true,"model",modelId,"checkedAt",java.time.Instant.now().toString());
     }
-    public tools.jackson.databind.JsonNode requestResponse(Map<String,Object> payload,long runId) throws Exception {
+    private volatile OpenAiChatModel chatModel;
+    private volatile String chatModelKey;
+    /** Spring AI's OpenAI chat model, rebuilt only when the key changes. It never runs tools itself; AgentModelRuntime does. */
+    private synchronized OpenAiChatModel chatModel(String secret){
+        if(chatModel==null || !secret.equals(chatModelKey)){
+            // No client retries: every request reserves budget first, so a silent retry could spend twice.
+            chatModel=OpenAiChatModel.builder().options(OpenAiChatOptions.builder().apiKey(secret).timeout(config.getTimeout()).maxRetries(0).build()).build();
+            chatModelKey=secret;
+        }
+        return chatModel;
+    }
+    /**
+     * One budgeted model request through Spring AI. Budget is reserved from a size estimate before the call,
+     * then settled with the token counts OpenAI reports. Concurrency and spacing limits apply to every request.
+     */
+    public ChatResponse chat(Prompt prompt,String modelId,int maxOutputTokens,long runId,int promptChars) throws Exception {
         String secret=key();
-        if(secret.isBlank())throw new IllegalStateException("OPENAI_API_KEY is missing; set it in the environment or private key file");
+        if(secret.isBlank())throw new IllegalStateException("OPENAI_API_KEY is missing; set it in .env and restart the board.");
         if(!slots.tryAcquire(config.getTimeout().toMillis(),TimeUnit.MILLISECONDS))throw new IllegalStateException("OpenAI slots busy");
         long reservation=0;
         try {
-            pace();byte[] body=json.writeValueAsBytes(payload);
-            String modelId=String.valueOf(payload.get("model"));var price=allowed(modelId);
-            double estimate=price.cost(body.length*2L+4096,0,((Number)payload.get("max_output_tokens")).intValue());
-            reservation=usage.reserve(runId,modelId,estimate);
-            var request=HttpRequest.newBuilder(URI.create("https://api.openai.com/v1/responses"))
-                    .timeout(config.getTimeout()).header("Authorization","Bearer "+secret).header("Content-Type","application/json")
-                    .POST(HttpRequest.BodyPublishers.ofByteArray(body)).build();
-            var response=client.send(request,HttpResponse.BodyHandlers.ofInputStream());byte[] bytes;
-            try(var stream=response.body()){bytes=stream.readNBytes(1_000_001);}
-            if(bytes.length>1_000_000)throw new IllegalStateException("OpenAI response too large");
-            var envelope=json.readTree(bytes);
-            if(response.statusCode()/100!=2)throw new IllegalStateException("OpenAI HTTP "+response.statusCode()+" ("+envelope.path("error").path("code").asText("request_failed")+"). Check the configured model and API credentials; no fallback was used.");
-            var tokens=envelope.path("usage");usage.success(reservation,tokens.path("input_tokens").asLong(),tokens.path("input_tokens_details").path("cached_tokens").asLong(),tokens.path("output_tokens").asLong());
-            usage.response(reservation,envelope.path("id").asText());
-            return envelope;
-        }catch(Exception e){if(reservation>0)usage.error(reservation);throw e;}
+            pace();
+            var price=allowed(modelId);
+            reservation=usage.reserve(runId,modelId,price.cost(promptChars*2L+4096,0,maxOutputTokens));
+            ChatResponse response=chatModel(secret).call(prompt);
+            var tokens=response.getMetadata().getUsage();
+            long in=tokens.getPromptTokens()==null?0:tokens.getPromptTokens(),out=tokens.getCompletionTokens()==null?0:tokens.getCompletionTokens();
+            long cached=tokens.getCacheReadInputTokens()==null?0:tokens.getCacheReadInputTokens();
+            usage.success(reservation,in,cached,out);
+            usage.response(reservation,Objects.toString(response.getMetadata().getId(),""));
+            return response;
+        }catch(Exception e){
+            if(reservation>0)usage.error(reservation);
+            throw new IllegalStateException("OpenAI request failed: "+Objects.toString(e.getMessage(),e.getClass().getSimpleName())+". Check the model and OPENAI_API_KEY; no other model was used.",e);
+        }
         finally{slots.release();}
     }
-    public Completion decode(tools.jackson.databind.JsonNode envelope,int limit) {
-        var tokens=envelope.path("usage");long in=tokens.path("input_tokens").asLong(),cached=tokens.path("input_tokens_details").path("cached_tokens").asLong(),out=tokens.path("output_tokens").asLong();
-        Map<String,Object> totals=Map.of("inputTokens",in,"cachedInputTokens",cached,"outputTokens",out,"estimatedUsd",priceFor(envelope.path("model").asText(model())).cost(in,cached,out));
-        if(!"completed".equals(envelope.path("status").asText())) {
-            String reason=envelope.path("incomplete_details").path("reason").asText("not_reported");
-            String message=reason.equals("max_output_tokens")?"OpenAI stopped at the output limit ("+out+"/"+limit+" tokens). Partial JSON was discarded; later agents did not start.":"OpenAI response "+envelope.path("status").asText()+" (reason: "+reason+"). Partial output was discarded.";
-            throw new ResponseProblem(message,reason,totals);
-        }
-        StringBuilder output=new StringBuilder();boolean hasFinal=false;
-        for(var item:envelope.path("output"))if("final_answer".equals(item.path("phase").asText()))hasFinal=true;
-        for(var item:envelope.path("output")){
-            String phase=item.path("phase").asText();
-            if("commentary".equals(phase) || (hasFinal && !"final_answer".equals(phase)))continue;
-            for(var content:item.path("content")) {
-                if("refusal".equals(content.path("type").asText()))throw new ResponseProblem("OpenAI refused the request.","refusal",totals);
-                if("output_text".equals(content.path("type").asText()))output.append(content.path("text").asText());
-            }
-        }
-        return new Completion(json.readTree(output.toString()),totals);
-    }
-    public static class ResponseProblem extends IllegalStateException {
-        public final String reason;public final Map<String,Object> usage;
-        public ResponseProblem(String message,String reason,Map<String,Object> usage){super(message);this.reason=reason;this.usage=usage;}
+    /** The model that drafts new agents: board.openai.setup-model when it is priced and on the account, else the default. */
+    public String setupModel(){
+        String m=config.getSetupModel();
+        if(m==null||m.isBlank())return model();
+        try{allowed(m);}catch(RuntimeException e){return model();}
+        return models().stream().anyMatch(c->c.id().equals(m)&&c.onAccount())?m:model();
     }
     /** The board's default model. */
     public String model(){return config.getModel();}
@@ -145,6 +142,5 @@ public class OpenAiReasoner {
     }
     /** Price for a model name in a response, which may carry a date suffix such as gpt-5.4-mini-2026-03-17. */
     public BoardProperties.ModelPrice priceFor(String responseModel){return config.priceOrFallback(responseModel);}
-    public record Completion(tools.jackson.databind.JsonNode answer,Map<String,Object> usage){}
     private static String cut(String s,int n) { return s==null?"":s.substring(0,Math.min(s.length(),n)); }
 }

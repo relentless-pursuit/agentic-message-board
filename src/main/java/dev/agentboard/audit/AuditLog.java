@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
 
 /**
  * "Who did what, when": every token use that changes something, every hook and every outbound call.
@@ -37,17 +36,7 @@ public class AuditLog {
         record(actor, action, target, detail, null);
     }
 
-    public List<Entry> recent(int limit) {
-        return jdbc.query("SELECT * FROM audit_log ORDER BY id DESC LIMIT ?",
-                (rs, n) -> new Entry(rs.getLong("id"), rs.getObject("at", OffsetDateTime.class), rs.getString("actor"),
-                        rs.getString("action"), rs.getString("target"), rs.getString("detail"), rs.getString("ip")),
-                Math.max(1, Math.min(limit, 500)));
-    }
-
     private static String cut(String s, int max) {
         return s == null ? null : s.length() > max ? s.substring(0, max) : s;
-    }
-
-    public record Entry(long id, OffsetDateTime at, String actor, String action, String target, String detail, String ip) {
     }
 }

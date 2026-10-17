@@ -74,7 +74,7 @@ BASE="http://127.0.0.1:$PORT"
 EXTRA=("--board.auth=$AUTH")
 SCRIPT=smoke-ui.cjs
 if [ "$DEMO" = 1 ]; then
-  EXTRA+=("--board.agents-dir=$ROOT/examples/agents" "--board.workflows-dir=$ROOT/examples/workflows")
+  EXTRA+=("--board.agents-dir=$TMP/agents" "--board.example-agents-dir=$ROOT/examples/agents" "--board.workflows-dir=$ROOT/examples/workflows")
   SCRIPT=smoke-demo.cjs
 fi
 if [ "$MODE" = fast ]; then
@@ -85,7 +85,7 @@ say "Start on $BASE (data in a temporary folder)"
 mkdir -p "$OUT"
 (
   cd "$TMP"
-  exec env -u OPENAI_API_KEY -u GITHUB_TOKEN -u BOARD_ADMIN_TOKEN -u BOARD_AUTH -u DB_URL -u AGENTS_DIR \
+  exec env -u OPENAI_API_KEY -u GITHUB_TOKEN -u BOARD_ADMIN_TOKEN -u BOARD_AUTH -u DB_URL -u AGENTS_DIR -u BOARD_EXAMPLE_AGENTS_DIR \
     PORT="$PORT" "$JAVA" -jar "$JAR" --spring.profiles.active=local ${EXTRA[@]+"${EXTRA[@]}"}
 ) >"$TMP/server.log" 2>&1 &
 PID=$!

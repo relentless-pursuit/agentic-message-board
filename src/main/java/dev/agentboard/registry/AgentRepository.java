@@ -22,19 +22,23 @@ public class AgentRepository {
         int updated = jdbc.update("""
                 UPDATE agents SET name = ?, function_text = ?, owner = ?, contact = ?, visibility = ?,
                     tags = ?, schedule = ?, connectors = ?, source = ?, enabled = ?, active = TRUE,
-                    definition = ?, event_trigger = ?, updated_at = ? WHERE handle = ?
+                    definition = ?, updated_at = ? WHERE handle = ?
                 """, a.name(), a.function(), a.owner(), a.contact(), a.visibility(),
                 String.join(",", a.tags()), a.trigger().describe(), String.join(",", a.connectorNames()),
-                source, a.enabled(), definitionJson, a.eventName(), now, a.handle());
+                source, a.enabled(), definitionJson, now, a.handle());
         if (updated == 0) {
             jdbc.update("""
                     INSERT INTO agents (handle, name, function_text, owner, contact, visibility, tags,
-                        schedule, connectors, source, enabled, active, definition, event_trigger, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?, ?, ?)
+                        schedule, connectors, source, enabled, active, definition, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?, ?)
                     """, a.handle(), a.name(), a.function(), a.owner(), a.contact(), a.visibility(),
                     String.join(",", a.tags()), a.trigger().describe(), String.join(",", a.connectorNames()),
-                    source, a.enabled(), definitionJson, a.eventName(), now, now);
+                    source, a.enabled(), definitionJson, now, now);
         }
+    }
+
+    public void deactivate(String handle) {
+        jdbc.update("UPDATE agents SET active = FALSE WHERE handle = ?", handle);
     }
 
     public int deactivateFileAgentsExcept(Collection<String> presentHandles) {
@@ -71,11 +75,6 @@ public class AgentRepository {
         return jdbc.query("SELECT definition FROM agents WHERE active = TRUE ORDER BY name, handle", (rs, n) -> rs.getString("definition"));
     }
 
-    public List<OwnerCount> owners() {
-        return jdbc.query("SELECT owner, COUNT(*) AS agents FROM agents WHERE active = TRUE GROUP BY owner ORDER BY owner",
-                (rs, n) -> new OwnerCount(rs.getString("owner"), rs.getLong("agents")));
-    }
-
     private static Filter filter(String query, String owner) {
         StringBuilder where = new StringBuilder("active = TRUE"); List<Object> params = new ArrayList<>();
         if (owner != null && !owner.isBlank()) { where.append(" AND owner = ?"); params.add(owner); }
@@ -103,9 +102,6 @@ public class AgentRepository {
         return Arrays.stream(value.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
     }
     private record Filter(String where, List<Object> params) {}
-    public record OwnerCount(String owner, long agents) {}
-
-    public long countActive() { return count(null, null); }
 
     public void recordPost(String handle, long id, String title, Instant at) {
         jdbc.update("UPDATE agents SET last_post_id=?, last_post_title=?, last_post_at=? WHERE handle=?",
@@ -117,25 +113,4 @@ public class AgentRepository {
                 id, status, status, at.atOffset(ZoneOffset.UTC), handle);
     }
 
-    public List<DueAgent> findDue(Instant now, int limit) {
-        return jdbc.query("SELECT definition, next_run_at FROM agents WHERE active=TRUE AND enabled=TRUE AND next_run_at<=? ORDER BY next_run_at LIMIT ?",
-                (rs,n)->new DueAgent(rs.getString("definition"), rs.getObject("next_run_at", OffsetDateTime.class).toInstant()),
-                now.atOffset(ZoneOffset.UTC), limit);
-    }
-
-    public void setNextRun(String handle, Instant next) {
-        jdbc.update("UPDATE agents SET next_run_at=? WHERE handle=?", next == null ? null : next.atOffset(ZoneOffset.UTC), handle);
-    }
-
-    public void initializeNextRun(String handle, Instant next) {
-        jdbc.update("UPDATE agents SET next_run_at=? WHERE handle=? AND next_run_at IS NULL", next.atOffset(ZoneOffset.UTC), handle);
-    }
-
-    public List<EventAgent> findByEvent(String event) {
-        return jdbc.query("SELECT handle, definition FROM agents WHERE active=TRUE AND enabled=TRUE AND event_trigger=? ORDER BY handle",
-                (rs,n)->new EventAgent(rs.getString("handle"), rs.getString("definition")), event);
-    }
-
-    public record DueAgent(String definitionJson, Instant scheduledFor) {}
-    public record EventAgent(String handle, String definitionJson) {}
 }

@@ -15,8 +15,8 @@ class ConnectorCatalogTest {
         List<Connector> connectors=Arrays.stream(names).map(name->(Connector)new Connector(){public String name(){return name;}public Observation fetch(Map<String,Object> options,RunContext context){throw new AssertionError("Catalog validation must not fetch data");}}).toList();
         return new ConnectorCatalog(new ConnectorRegistry(connectors),new SafeHttp(props,json),props);
     }
-    private AgentDefinition agent(String connector,Map<String,Object> settings,boolean event){
-        return json.convertValue(Map.of("trigger",event?Map.of("on_event","post.created"):Map.of("every","30m"),
+    private AgentDefinition agent(String connector,Map<String,Object> settings){
+        return json.convertValue(Map.of("trigger",Map.of(),
                 "observe",List.of(Map.of("connector",connector,"with",settings))),AgentDefinition.class);
     }
     @Test void catalogUsesAvailableImplementationsRatherThanRegisteredAgents(){
@@ -25,33 +25,29 @@ class ConnectorCatalogTest {
         assertThat(catalog("new_plugin").list().get(0).formSupported()).isFalse();
     }
     @Test void supportsCorrectInputsAndFixedSourcesWithoutAnyNetworkCalls(){
-        var catalog=catalog("board","event","github_issues","github_pulls","github_releases","hackernews","http_check","rss");
-        catalog.validate(agent("github_issues",Map.of("repo","example/repository","limit",10),false));
-        catalog.validate(agent("http_check",Map.of("urls",List.of("https://www.githubstatus.com"),"slow_ms",2000),false));
-        catalog.validate(agent("github_pulls",Map.of("repo","example/repository","limit",10),false));
-        catalog.validate(agent("github_releases",Map.of("repos",List.of("example/repository")),false));
-        catalog.validate(agent("rss",Map.of("feeds",List.of("https://www.githubstatus.com/history.atom")),false));
-        catalog.validate(agent("hackernews",Map.of("top",15),false));
-        catalog.validate(agent("board",Map.of("since","24h"),false));
-        catalog.validate(agent("event",Map.of(),true));
-        catalog.validate(json.convertValue(Map.of("trigger",Map.of("on_event","hook.received"),
-                "inboundSecret","${TEST_HOOK_SECRET}","observe",List.of(Map.of("connector","event","with",Map.of()))),AgentDefinition.class));
-        assertThat(catalog.list()).hasSize(8);
+        var catalog=catalog("board","github_issues","github_pulls","github_releases","hackernews","http_check","rss");
+        catalog.validate(agent("github_issues",Map.of("repo","example/repository","limit",10)));
+        catalog.validate(agent("http_check",Map.of("urls",List.of("https://www.githubstatus.com"),"slow_ms",2000)));
+        catalog.validate(agent("github_pulls",Map.of("repo","example/repository","limit",10)));
+        catalog.validate(agent("github_releases",Map.of("repos",List.of("example/repository"))));
+        catalog.validate(agent("rss",Map.of("feeds",List.of("https://www.githubstatus.com/history.atom"))));
+        catalog.validate(agent("hackernews",Map.of("top",15)));
+        catalog.validate(agent("board",Map.of("since","24h")));
+        assertThat(catalog.list()).hasSize(7);
     }
     @Test void rejectsMissingConnectorsAndLegacyAmbiguousTargetOption(){
         var catalog=catalog("http_check");
-        assertThatThrownBy(()->catalog.validate(agent("xyz",Map.of(),false))).hasMessageContaining("not available");
-        assertThatThrownBy(()->catalog.validate(agent("http_check",Map.of("target","https://www.githubstatus.com"),false))).hasMessageContaining("Unknown http_check option");
-        assertThatThrownBy(()->catalog.validate(agent("http_check",Map.of(),false))).hasMessageContaining("required");
+        assertThatThrownBy(()->catalog.validate(agent("xyz",Map.of()))).hasMessageContaining("not available");
+        assertThatThrownBy(()->catalog.validate(agent("http_check",Map.of("target","https://www.githubstatus.com")))).hasMessageContaining("Unknown http_check option");
+        assertThatThrownBy(()->catalog.validate(agent("http_check",Map.of()))).hasMessageContaining("required");
     }
     @Test void validatesSourceSyntaxHostRulesAndNumericLimitsBeforeSaving(){
-        var catalog=catalog("http_check","github_pulls","hackernews","board","event");
-        assertThatThrownBy(()->catalog.validate(agent("http_check",Map.of("urls",List.of("https://not-allowed.example")),false))).hasMessageContaining("allow-list");
-        assertThatThrownBy(()->catalog.validate(agent("http_check",Map.of("urls",List.of()),false))).hasMessageContaining("1–20");
-        assertThatThrownBy(()->catalog.validate(agent("github_pulls",Map.of("repo","https://github.com/owner/repo"),false))).hasMessageContaining("owner/repository");
-        assertThatThrownBy(()->catalog.validate(agent("hackernews",Map.of("top",31),false))).hasMessageContaining("integer");
-        assertThatThrownBy(()->catalog.validate(agent("hackernews",Map.of("top",1.5),false))).hasMessageContaining("integer");
-        assertThatThrownBy(()->catalog.validate(agent("board",Map.of("since","yesterday"),false))).hasMessageContaining("24h");
-        assertThatThrownBy(()->catalog.validate(agent("event",Map.of(),false))).hasMessageContaining("board event");
+        var catalog=catalog("http_check","github_pulls","hackernews","board");
+        assertThatThrownBy(()->catalog.validate(agent("http_check",Map.of("urls",List.of("https://not-allowed.example"))))).hasMessageContaining("allow-list");
+        assertThatThrownBy(()->catalog.validate(agent("http_check",Map.of("urls",List.of())))).hasMessageContaining("1–20");
+        assertThatThrownBy(()->catalog.validate(agent("github_pulls",Map.of("repo","https://github.com/owner/repo")))).hasMessageContaining("owner/repository");
+        assertThatThrownBy(()->catalog.validate(agent("hackernews",Map.of("top",31)))).hasMessageContaining("integer");
+        assertThatThrownBy(()->catalog.validate(agent("hackernews",Map.of("top",1.5)))).hasMessageContaining("integer");
+        assertThatThrownBy(()->catalog.validate(agent("board",Map.of("since","yesterday")))).hasMessageContaining("24h");
     }
 }

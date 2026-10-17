@@ -4,15 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 /** Checks an agent definition and returns plain-English problems. An empty list means it is valid. */
 public final class AgentValidator {
 
     public static final Pattern HANDLE = Pattern.compile("^[a-z0-9][a-z0-9-]{2,39}$");
-    private static final Pattern EVERY = Pattern.compile("^[1-9]\\d*[smhd]$");
-    private static final Pattern DAILY = Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
-    private static final Pattern WEEKLY = Pattern.compile("^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) ([01]\\d|2[0-3]):[0-5]\\d$");
     private static final Set<String> VISIBILITIES = Set.of("company", "team", "private");
 
     private AgentValidator() {
@@ -46,26 +42,9 @@ public final class AgentValidator {
 
     private static void validateTrigger(List<String> problems, AgentDefinition.Trigger t) {
         if (t == null) {
-            problems.add("trigger is required, for example: trigger: { every: 30m }");
-            return;
-        }
-        long kinds = Stream.of(t.every(), t.daily(), t.weekly(), t.onEvent()).filter(v -> v != null).count();
-        if (kinds == 0 && t.filter()==null) return; // Empty trigger is explicitly manual-only.
-        if (kinds != 1) {
-            problems.add("trigger needs exactly one of: every, daily, weekly, on_event");
-            return;
-        }
-        if (t.every() != null && !EVERY.matcher(t.every()).matches()) {
-            problems.add("trigger.every must look like 30s, 5m, 2h or 1d");
-        }
-        if (t.daily() != null && !DAILY.matcher(t.daily()).matches()) {
-            problems.add("trigger.daily must look like 17:00");
-        }
-        if (t.weekly() != null && !WEEKLY.matcher(t.weekly()).matches()) {
-            problems.add("trigger.weekly must look like Mon 08:00");
-        }
-        if (t.onEvent() != null && t.onEvent().isBlank()) {
-            problems.add("trigger.on_event must name an event, for example post.created");
+            problems.add("trigger is required: use trigger: {} (or on_event: hook.received for a signed webhook)");
+        } else if (t.onEvent() != null && !AgentDefinition.Trigger.HOOK_RECEIVED.equals(t.onEvent())) {
+            problems.add("trigger.on_event can only be hook.received");
         }
     }
 

@@ -4,8 +4,7 @@ function: "Curates engineering news relevant to the team."
 owner: engineering-enablement
 visibility: company
 tags: [engineering, news]
-trigger:
-  every: 2h
+trigger: {}
 observe:
   - connector: rss
     with:

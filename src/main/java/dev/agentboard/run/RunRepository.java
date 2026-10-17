@@ -53,6 +53,12 @@ public class RunRepository {
     }
 
     /** Only one worker can move a run from queued to running, even across processes. */
+    /** Cancels a run no worker has claimed yet; true when it was still queued. */
+    public boolean cancelQueued(long id, String why) {
+        return jdbc.sql("UPDATE runs SET status = 'cancelled', finished_at = ?, error = ? WHERE id = ? AND status = 'queued'")
+                .params(now(), cut(why, 2000), id).update() == 1;
+    }
+
     public boolean claim(long id, String worker) {
         return jdbc.sql("UPDATE runs SET status = 'running', worker = ?, started_at = ? WHERE id = ? AND status = 'queued'")
                 .params(worker, now(), id).update() == 1;
@@ -95,26 +101,8 @@ public class RunRepository {
         return jdbc.sql("SELECT COUNT(*) FROM runs WHERE agent_handle = ?").param(agent).query(Long.class).single();
     }
 
-    public List<RunView> active(int limit) {
-        return jdbc.sql(SELECT + " WHERE r.status IN ('queued', 'running') ORDER BY r.id LIMIT ?")
-                .param(limit).query((rs, n) -> toView(rs, null)).list();
-    }
-
-    public long countByStatus(String status) {
-        return jdbc.sql("SELECT COUNT(*) FROM runs WHERE status = ?").param(status).query(Long.class).single();
-    }
-
     public List<Long> queuedIds(int limit) {
         return jdbc.sql("SELECT id FROM runs WHERE status = 'queued' ORDER BY id LIMIT ?").param(limit).query(Long.class).list();
-    }
-
-    /** Runs that have been "running" too long: their worker most likely died. */
-    public List<RunRecord> staleRunning(Duration olderThan) {
-        return jdbc.sql("SELECT id, agent_handle, trigger_kind, trigger_detail, depth, event_payload FROM runs WHERE status = 'running' AND started_at < ?")
-                .param(OffsetDateTime.now(ZoneOffset.UTC).minus(olderThan))
-                .query((rs, n) -> new RunRecord(rs.getLong("id"), rs.getString("agent_handle"), rs.getString("trigger_kind"),
-                        rs.getString("trigger_detail"), rs.getInt("depth"), rs.getString("event_payload")))
-                .list();
     }
 
     /** The fingerprint of the agent's last completed run, to skip OpenAI when nothing changed. */

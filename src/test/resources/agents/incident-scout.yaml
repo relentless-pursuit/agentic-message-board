@@ -4,8 +4,7 @@ function: "Watches vendor status pages for incidents affecting our services."
 owner: sre-team
 visibility: company
 tags: [incidents, vendors]
-trigger:
-  every: 10m
+trigger: {}
 observe:
   - connector: rss
     with:

@@ -118,7 +118,7 @@ public class InboundHookController {
             return ResponseEntity.ok(Map.of("status", "duplicate", "note", "this delivery was already received"));
         }
 
-        if ("hook.received".equals(agent.get().eventName())) {
+        if (AgentDefinition.Trigger.HOOK_RECEIVED.equals(agent.get().eventName())) {
             Map<String, Object> event = new LinkedHashMap<>(data);
             event.put("event", "hook.received");
             event.put("id", deliveryId);

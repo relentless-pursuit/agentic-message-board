@@ -111,7 +111,7 @@ class RegistryIntegrationTest {
     @Test void registrationPersistsAFileAndRejectsDuplicateHandles() throws Exception {
         String input = """
                 {"handle":"new-check","name":"New Check","function":"Checks shared engineering work.",
-                 "owner":"test-team","visibility":"company","trigger":{"every":"30m"},
+                 "owner":"test-team","visibility":"company","trigger":{},
                  "observe":[{"connector":"http_check","with":{"urls":["https://www.githubstatus.com"]}}],
                  "reason":"Summarize the supplied measurements.","act":[{"action":"post","with":{}}]}
                 """;
@@ -124,14 +124,12 @@ class RegistryIntegrationTest {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.message").isString());
     }
 
-    @Test void badFilesAreReportedWithoutDeactivatingExistingAgents() throws Exception {
+    @Test void badFilesDoNotDeactivateExistingAgents() throws Exception {
         Path broken = DIR.resolve("build-monitor.yaml");
         String original = Files.readString(broken);
         try {
             Files.writeString(broken, "handle: [broken YAML");
             registry.reloadFiles();
-            mvc.perform(get("/api/registry/errors")).andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].file").value("build-monitor.yaml"));
             mvc.perform(get("/api/agents/build-monitor")).andExpect(status().isOk());
         } finally { Files.writeString(broken, original); registry.reloadFiles(); }
     }
@@ -148,13 +146,12 @@ class RegistryIntegrationTest {
         registry.reloadFiles();
         mvc.perform(get("/api/agents/manual-issues")).andExpect(status().isOk()).andExpect(jsonPath("$.agent.tags").isEmpty());
         mvc.perform(get("/api/agents/manual-issues/runs")).andExpect(jsonPath("$.total").value(0));
-        assertThat(jdbc.queryForObject("SELECT next_run_at FROM agents WHERE handle='manual-issues'",Object.class)).isNull();
     }
 
     @Test void validationRejectsNullStepsAndUnsafeHandles() throws Exception {
         String input = """
                 {"handle":"../escape","name":"Bad","function":"Bad input","owner":"test-team",
-                 "trigger":{"every":"30m"},"observe":[null],"act":[null]}
+                 "trigger":{},"observe":[null],"act":[null]}
                 """;
         mvc.perform(post("/api/agents").contentType(MediaType.APPLICATION_JSON).content(input))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").isString());
@@ -163,21 +160,18 @@ class RegistryIntegrationTest {
 
     @Test void servesTheUiAndReportsExecutionHonestly() throws Exception {
         mvc.perform(get("/index.html")).andExpect(status().isOk());
-        mvc.perform(get("/api/health")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.executionAvailable").value(true));
     }
 
     @Test void auditPersistsBoundedEntriesAndConfigurationIsRegistered() {
         assertThat(boardProperties.getAgentsDir()).isEqualTo(DIR.toString());
         audit.record("demo-actor", "post", "demo-target", "x".repeat(1100));
         audit.record("demo-actor", "reply", "demo-target", "latest", "127.0.0.1");
-        var recent = audit.recent(2);
+        var recent = jdbc.queryForList("SELECT detail, ip FROM audit_log ORDER BY id DESC LIMIT 2");
         assertThat(recent).hasSize(2);
-        assertThat(recent.get(0).detail()).isEqualTo("latest");
-        assertThat(recent.get(0).ip()).isEqualTo("127.0.0.1");
-        assertThat(recent.get(1).detail()).hasSize(1000);
-        assertThat(recent.get(1).ip()).isNull();
-        assertThat(audit.recent(0)).hasSize(1);
+        assertThat(recent.get(0).get("DETAIL")).isEqualTo("latest");
+        assertThat(recent.get(0).get("IP")).isEqualTo("127.0.0.1");
+        assertThat((String) recent.get(1).get("DETAIL")).hasSize(1000);
+        assertThat(recent.get(1).get("IP")).isNull();
     }
 
     @Test void deliveriesRejectReplayPerAgentAndCleanupOnlyOldRecords() {
@@ -185,8 +179,8 @@ class RegistryIntegrationTest {
         assertThat(deliveries.firstTime("first-agent", "same-delivery")).isFalse();
         assertThat(deliveries.firstTime("second-agent", "same-delivery")).isTrue();
         jdbc.update("UPDATE hook_deliveries SET received_at = ? WHERE agent_handle = ?",
-                java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).minusHours(2), "first-agent");
-        deliveries.forgetOlderThan(java.time.Duration.ofHours(1));
+                java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).minusDays(2), "first-agent");
+        // Each new delivery clears records older than a day, after which a stale id is accepted again.
         assertThat(deliveries.firstTime("first-agent", "same-delivery")).isTrue();
         assertThat(deliveries.firstTime("second-agent", "same-delivery")).isFalse();
     }

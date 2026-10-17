@@ -1,5 +1,7 @@
 package dev.agentboard.workflow;
 
+import dev.agentboard.mcp.client.McpConnectorService;
+
 import dev.agentboard.registry.*;
 import dev.agentboard.run.*;
 import dev.agentboard.post.*;
@@ -18,24 +20,33 @@ import java.util.*;
 /** A persisted DAG coordinator for a single board process. Agent work uses the existing queue, runner and posts. */
 @Service
 public class WorkflowService {
-    public record Skill(String id,String name,String instructions,String operation,List<String> keywords,List<String> permittedTools,String outputContract){
-        public Skill {keywords=keywords==null?List.of():keywords;permittedTools=permittedTools==null?List.of():List.copyOf(permittedTools);outputContract=outputContract==null?"Grounded findings, citations and explicit uncertainty.":outputContract;}
-        public Skill(String id,String name,String instructions,String operation,List<String> keywords){this(id,name,instructions,operation,keywords,List.of(),null);}
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties("outputContract") // Earlier saved definitions may contain the retired field.
+    /** inputs: questions the person starting a run must answer (for example "Which repository?"); the answers reach the model as runInputs. */
+    public record Skill(String id,String name,String instructions,String operation,List<String> keywords,List<String> permittedTools,List<String> inputs){
+        public Skill {keywords=keywords==null?List.of():keywords;permittedTools=permittedTools==null?List.of():List.copyOf(permittedTools);
+            inputs=inputs==null?List.of():inputs.stream().filter(Objects::nonNull).map(String::trim).filter(v->!v.isEmpty()).distinct().toList();}
+        public Skill(String id,String name,String instructions,String operation,List<String> keywords,List<String> permittedTools){this(id,name,instructions,operation,keywords,permittedTools,List.of());}
+        public Skill(String id,String name,String instructions,String operation,List<String> keywords){this(id,name,instructions,operation,keywords,List.of());}
     }
+    /** Prefix of the skill made for one agent by the guided Create agent dialog; it is deleted with that agent. */
+    public static final String OWN_SKILL="for-";
     public record Node(String id,String agent,String skill,double x,double y){}
     public record Edge(String from,String to,String output,String input){}
     public record Definition(String id,String name,List<Node> nodes,List<Edge> edges){}
-    public record NewAgent(String name,String function,String skill,String connector,Map<String,Object> settings,String model){
+    /** Either names an existing skill, or carries instructions, tools and inputs for a skill of its own. */
+    public record NewAgent(String name,String function,String skill,String connector,Map<String,Object> settings,String model,String instructions,List<String> tools,List<String> inputs){
+        public NewAgent(String name,String function,String skill,String connector,Map<String,Object> settings,String model){this(name,function,skill,connector,settings,model,null,null,null);}
         public NewAgent(String name,String function,String skill,String connector,Map<String,Object> settings){this(name,function,skill,connector,settings,null);}
         public NewAgent(String name,String function,String skill){this(name,function,skill,"workflow_input",Map.of(),null);}
     }
     private final JdbcTemplate db;private final ObjectMapper json;private final AgentRegistry registry;
     private final RunService queue;private final RunRepository runs;private final PostRepository posts;
-    private final ReadTools readTools;private final AgentReportStore reports;private final dev.agentboard.connect.ConnectorRegistry connectors;
-    private final OpenAiReasoner model;private final BoardProperties config;private final ModelUsage usage;
-    public WorkflowService(JdbcTemplate db,ObjectMapper json,AgentRegistry registry,RunService queue,RunRepository runs,PostRepository posts,OpenAiReasoner model,BoardProperties config,ModelUsage usage,ReadTools readTools,AgentReportStore reports,dev.agentboard.connect.ConnectorRegistry connectors){
+    private final AgentReportStore reports;private final dev.agentboard.connect.ConnectorRegistry connectors;
+    private final OpenAiReasoner model;private final BoardProperties config;private final ModelUsage usage;private final McpConnectorService mcp;private final RunCancellation cancellation;
+    public WorkflowService(JdbcTemplate db,ObjectMapper json,AgentRegistry registry,RunService queue,RunRepository runs,PostRepository posts,OpenAiReasoner model,BoardProperties config,ModelUsage usage,AgentReportStore reports,dev.agentboard.connect.ConnectorRegistry connectors,McpConnectorService mcp,RunCancellation cancellation){
+        this.cancellation=cancellation;
         this.db=db;this.json=json;this.registry=registry;this.queue=queue;this.runs=runs;this.posts=posts;
-        this.model=model;this.config=config;this.usage=usage;this.readTools=readTools;this.reports=reports;this.connectors=connectors;
+        this.model=model;this.config=config;this.usage=usage;this.reports=reports;this.connectors=connectors;this.mcp=mcp;
         // Interrupted executions stay inspectable. Never replay model requests on a server restart.
         for(String id:db.query("SELECT id FROM workflow_executions WHERE status='running'",(rs,n)->rs.getString(1))){
             var state=execution(id);state.put("status","interrupted");state.put("error","The server restarted. Start a new run explicitly; this run was not retried.");
@@ -45,43 +56,97 @@ public class WorkflowService {
             }
             persist(state);
         }
+        // Retire built-in reads from current skills without changing historical execution snapshots.
+        for(Skill old:skills()) {
+            var retained=old.permittedTools().stream().filter(t->!ReadTools.NAMES.contains(t)).toList();
+            if(!retained.equals(old.permittedTools())) {
+                Skill migrated=new Skill(old.id(),old.name(),old.instructions(),old.operation(),old.keywords(),retained,old.inputs());
+                db.update("UPDATE board_skills SET detail=? WHERE id=?",json.writeValueAsString(migrated),old.id());
+            }
+        }
         try {
             var defaults=json.readTree(new ClassPathResource("workflows/skills.json").getInputStream());
-            for(var skill:defaults.path("skills")){Skill s=json.convertValue(skill,Skill.class);if(!hasSkill(s.id()))saveSkill(s);}
+            // Seed the example skills once, on an empty board, so a skill someone deletes stays deleted.
+            if(db.queryForObject("SELECT COUNT(*) FROM board_skills",Integer.class)==0)
+                for(var skill:defaults.path("skills")){Skill s=json.convertValue(skill,Skill.class);if(!hasSkill(s.id()))saveSkill(s);}
         }catch(Exception e){throw new IllegalStateException("Workflow template could not be read",e);}
     }
     public List<Skill> skills(){return db.query("SELECT detail FROM board_skills ORDER BY id",(rs,n)->json.readValue(rs.getString(1),Skill.class));}
     public Map<String,Object> options(){
         var models=model.models().stream().map(m->Map.<String,Object>of("id",m.id(),"inputUsdPerMillion",m.inputUsdPerMillion(),"outputUsdPerMillion",m.outputUsdPerMillion(),"priceListed",m.priceListed(),"onAccount",m.onAccount())).toList();
-        return Map.of("providers",List.of(Map.of("id","openai","name","OpenAI · "+model.model(),"available",model.configured())),"model",model.model(),"models",models,"configured",model.configured(),"capacity",usage.capacity(),"tools",ReadTools.NAMES,"toolParameters",ReadTools.parameterSpec());
+        return Map.of("providers",List.of(Map.of("id","openai","name","OpenAI · "+model.model(),"available",model.configured())),"model",model.model(),"models",models,"configured",model.configured(),"capacity",usage.capacity(),"tools",mcp.views().stream().flatMap(v->v.tools().stream()).map(McpConnectorService.ToolInfo::qualifiedName).toList());
     }
-    public Map<String,Object> preflight(){try{return model.preflight();}catch(Exception e){throw bad(e.getMessage());}}
     private boolean hasSkill(String id){return Boolean.TRUE.equals(db.queryForObject("SELECT COUNT(*)>0 FROM board_skills WHERE id=?",Boolean.class,id));}
     public Skill skill(String id){return skills().stream().filter(s->s.id().equals(id)).findFirst().orElseThrow(()->bad("Unknown skill: "+id));}
     public synchronized Skill saveSkill(Skill s){
         if(s==null)throw bad("Skill is required.");identifier(s.id());text(s.name(),"Skill name",60);text(s.instructions(),"Skill instructions",6000);
-        if(s.permittedTools().size()>7 || !ReadTools.NAMES.containsAll(s.permittedTools()))throw bad("Select supported read-only tools.");
-        text(s.outputContract(),"Output contract",1000);
+        checkTools(s.permittedTools());checkInputs(s.inputs());
         if(hasSkill(s.id()))throw bad("That skill ID already exists. Create a new revision with a new ID.");
         db.update("INSERT INTO board_skills(id,detail) VALUES(?,?)",s.id(),json.writeValueAsString(s));return s;
     }
     public synchronized Skill updateSkill(String id,Skill s){
-        skill(id);if(!id.equals(s.id()))throw bad("Skill ID cannot be changed.");text(s.name(),"Skill name",60);text(s.instructions(),"Instructions",6000);text(s.outputContract(),"Output contract",1000);if(!ReadTools.NAMES.containsAll(s.permittedTools()))throw bad("Unknown tool.");
+        skill(id);if(!id.equals(s.id()))throw bad("Skill ID cannot be changed.");text(s.name(),"Skill name",60);text(s.instructions(),"Instructions",6000);checkTools(s.permittedTools());checkInputs(s.inputs());
         db.update("UPDATE board_skills SET detail=? WHERE id=?",json.writeValueAsString(s),id);return s;
     }
+    private static void checkInputs(List<String> inputs){
+        if(inputs.size()>6)throw bad("Ask at most six questions when a run starts.");
+        for(String q:inputs)if(q.length()>150)throw bad("Keep each run question under 150 characters: "+q);
+    }
+    /** Removes a skill no agent uses. */
+    public synchronized void deleteSkill(String id){
+        skill(id);
+        var users=registry.allDefinitions().stream().filter(a->id.equals(a.skill())).map(AgentDefinition::name).toList();
+        if(!users.isEmpty())throw new ResponseStatusException(HttpStatus.CONFLICT,"Used by "+String.join(", ",users)+". Delete those agents or give them another skill first.");
+        db.update("DELETE FROM board_skills WHERE id=?",id);
+    }
+    /** A skill may use tools a saved MCP connector offers (connectorId__toolName). */
+    private void checkTools(List<String> tools){
+        if(tools.size()>20)throw bad("A skill can use at most 20 tools.");
+        for(String t:tools)if(!McpConnectorService.isMcpTool(t)||!mcp.knows(t))
+            throw bad(McpConnectorService.isMcpTool(t)?"The tool "+t+" is not offered by a working connector. Test connector '"+McpConnectorService.connectorOf(t)+"' on the Connectors page.":"Built-in tools are unavailable. Choose tools from a configured MCP connector: "+t);
+    }
     public synchronized Map<String,Object> createAgent(NewAgent input){
-        if(input==null)throw bad("Agent is required.");text(input.name(),"Name",60);text(input.function(),"Function",200);Skill s=skill(input.skill());
+        if(input==null)throw bad("Agent is required.");text(input.name(),"Name",60);text(input.function(),"Purpose",200);
         String handle="agent-"+UUID.randomUUID().toString().substring(0,12);
-        String connector=input.connector()==null?"workflow_input":input.connector();
-        if(!workflowConnectors().contains(connector))throw bad("Choose one of the available inputs: "+workflowConnectors()+".");
+        boolean own=input.skill()==null || input.skill().isBlank();
+        // The guided dialog sends instructions and tools; they become a skill that belongs to this agent.
+        Skill s=own?new Skill(OWN_SKILL+handle,input.name().trim(),input.instructions(),null,List.of(),input.tools(),input.inputs()):skill(input.skill());
+        if(own){text(s.instructions(),"Instructions",6000);checkTools(s.permittedTools());checkInputs(s.inputs());}
+        if(input.connector()!=null && !input.connector().equals("workflow_input") || input.settings()!=null && !input.settings().isEmpty())
+            throw bad("Agent inputs come from the workflow and upstream results. Select MCP connector tools on its reusable skill.");
         String chosen=input.model()==null || input.model().isBlank()?null:input.model().trim();
         if(chosen!=null){try{model.allowed(chosen);}catch(IllegalArgumentException e){throw bad(e.getMessage());}}
-        createRegistryAgent(handle,input.name(),input.function(),s,new AgentDefinition.ObserveStep(connector,input.settings()==null?Map.of():input.settings()),chosen);
+        if(own)saveSkill(s);
+        try{createRegistryAgent(handle,input.name().trim(),input.function().trim(),s,new AgentDefinition.ObserveStep("workflow_input",Map.of()),chosen);}
+        catch(RuntimeException e){if(own)db.update("DELETE FROM board_skills WHERE id=?",s.id());throw e;}
         return Map.of("agent",registry.view(handle).orElseThrow(),"skill",s.id());
+    }
+    /**
+     * Deletes an agent created on this board and takes it out of saved workflows (a workflow left empty is deleted).
+     * Run history and posts stay. Example agents are read-only.
+     */
+    public synchronized Map<String,Object> deleteAgent(String handle){
+        var agent=registry.definition(handle).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Unknown agent."));
+        for(String id:db.query("SELECT id FROM workflow_executions WHERE status='running'",(rs,n)->rs.getString(1)))
+            if(nodes(execution(id)).stream().anyMatch(n->handle.equals(n.get("agent"))))throw new ResponseStatusException(HttpStatus.CONFLICT,"A running workflow uses "+agent.name()+". Wait for it to finish.");
+        registry.delete(handle);
+        var changed=new ArrayList<String>();
+        for(Definition d:definitions()){
+            var gone=d.nodes().stream().filter(n->n.agent().equals(handle)).map(Node::id).collect(java.util.stream.Collectors.toSet());
+            if(gone.isEmpty())continue;
+            changed.add(d.name());
+            var nodes=d.nodes().stream().filter(n->!gone.contains(n.id())).toList();
+            if(nodes.isEmpty()){db.update("DELETE FROM workflow_definitions WHERE id=?",d.id());continue;}
+            var kept=new Definition(d.id(),d.name(),nodes,d.edges().stream().filter(e->!gone.contains(e.from())&&!gone.contains(e.to())).toList());
+            db.update("UPDATE workflow_definitions SET detail=? WHERE id=?",json.writeValueAsString(kept),d.id());
+        }
+        String own=agent.skill();
+        if(own!=null && own.startsWith(OWN_SKILL) && registry.allDefinitions().stream().noneMatch(a->own.equals(a.skill())))db.update("DELETE FROM board_skills WHERE id=?",own);
+        return Map.of("deleted",handle,"workflows",changed);
     }
     private void createRegistryAgent(String handle,String name,String function,Skill s,AgentDefinition.ObserveStep observe,String modelId){
         registry.create(new AgentDefinition(handle,name,function,"My team",null,"company",List.of("workflow"),
-            new AgentDefinition.Trigger(null,null,null,null,null),List.of(observe),
+            new AgentDefinition.Trigger(null),List.of(observe),
             s.instructions(),List.of(new AgentDefinition.ActStep("post",Map.of())),true,null,"openai",modelId,s.id()));
     }
     /** Inputs a workflow agent may read: every connector the board has, except the ones that wait for a board event. */
@@ -93,7 +158,7 @@ public class WorkflowService {
         for(AgentDefinition d:registry.allDefinitions()){
             if(d.skill()==null || !known.contains(d.skill()))continue;
             var view=registry.view(d.handle());if(view.isEmpty())continue;
-            out.add(Map.<String,Object>of("agent",view.get(),"skill",d.skill(),"model",model.modelFor(d)));
+            out.add(Map.<String,Object>of("agent",view.get(),"skill",d.skill(),"model",model.modelFor(d),"deletable",registry.deletable(d.handle())));
         }
         return out;
     }
@@ -103,6 +168,15 @@ public class WorkflowService {
         if(db.update("UPDATE workflow_definitions SET name=?,detail=? WHERE id=?",d.name(),json.writeValueAsString(saved),id)==0)
             db.update("INSERT INTO workflow_definitions(id,name,detail) VALUES(?,?,?)",id,d.name(),json.writeValueAsString(saved));
         return saved;
+    }
+    /** Deletes a saved workflow. Its past runs keep their own copy of the definition and stay in Run history. */
+    public synchronized void deleteWorkflow(String id){
+        definition(id);
+        for(String run:db.query("SELECT id FROM workflow_executions WHERE status='running'",(rs,n)->rs.getString(1))){
+            var def=execution(run).get("definition");
+            if(def instanceof Map<?,?> m && id.equals(m.get("id")))throw new ResponseStatusException(HttpStatus.CONFLICT,"This workflow is running. Wait for it to finish.");
+        }
+        db.update("DELETE FROM workflow_definitions WHERE id=?",id);
     }
     public List<Definition> definitions(){return db.query("SELECT detail FROM workflow_definitions ORDER BY name",(rs,n)->json.readValue(rs.getString(1),Definition.class));}
     public Definition definition(String id){return definitions().stream().filter(d->d.id().equals(id)).findFirst().orElseThrow(()->bad("Unknown workflow."));}
@@ -134,11 +208,29 @@ public class WorkflowService {
     }
     public synchronized Map<String,Object> start(String id,String key,String source,String failNode,String provider){return start(id,key,source,failNode,provider,Map.of());}
     public synchronized Map<String,Object> start(String id,String key,String source,String failNode,String provider,Map<String,Object> parameters){
+        return start(id,key,source,failNode,provider,parameters,Map.of());
+    }
+    /** answers: node id to {question: answer} for the questions its skill asks when a run starts. */
+    public synchronized Map<String,Object> start(String id,String key,String source,String failNode,String provider,Map<String,Object> parameters,Map<String,Map<String,String>> answers){
         try{UUID.fromString(key);}catch(Exception e){throw bad("Invalid submission key.");}
         var existing=db.query("SELECT id FROM workflow_executions WHERE request_key=?",(rs,n)->rs.getString(1),key);
         if(!existing.isEmpty())return execution(existing.get(0));
         Definition d=definition(id);validate(d);
-        boolean pastedRoot=d.nodes().stream().anyMatch(n->skill(n.skill()).permittedTools().isEmpty() && registry.definition(n.agent()).orElseThrow().observe().get(0).connector().equals("workflow_input") && d.edges().stream().noneMatch(e->e.to().equals(n.id())));
+        d.nodes().forEach(n->checkTools(skill(n.skill()).permittedTools()));
+        answers=answers==null?Map.of():answers;
+        // Every question must be answered before anything is spent, so no agent stops to say it needs information.
+        var runInputs=new HashMap<String,Map<String,String>>();
+        for(Node n:d.nodes()){
+            var given=answers.getOrDefault(n.id(),Map.of());var pinned=new LinkedHashMap<String,String>();
+            for(String q:skill(n.skill()).inputs()){
+                String v=Objects.toString(given.get(q),"").trim();
+                if(v.isEmpty())throw bad(registry.definition(n.agent()).map(AgentDefinition::name).orElse(n.agent())+" needs an answer: "+q);
+                if(v.length()>1000)throw bad("Keep each answer under 1,000 characters: "+q);
+                pinned.put(q,v);
+            }
+            runInputs.put(n.id(),pinned);
+        }
+        boolean pastedRoot=d.nodes().stream().anyMatch(n->skill(n.skill()).permittedTools().isEmpty() && skill(n.skill()).inputs().isEmpty() && d.edges().stream().noneMatch(e->e.to().equals(n.id())));
         source=source==null?"":source.trim();
         if(source.length()>8000 || (pastedRoot && source.isBlank()))throw bad("Source text is required for agents with no connector or upstream input (up to 8,000 characters).");
         if(provider!=null && !provider.equals("openai"))throw bad("Only OpenAI is supported for new runs.");
@@ -150,24 +242,51 @@ public class WorkflowService {
         for(String m:d.nodes().stream().map(n->model.modelFor(registry.definition(n.agent()).orElseThrow())).distinct().toList()){
             try{model.preflight(m);}catch(Exception e){throw bad(e.getMessage());}
         }
+        // Every MCP connector the workflow needs must answer before any agent starts, so a dead server fails the run at once.
+        for(String c:d.nodes().stream().flatMap(n->skill(n.skill()).permittedTools().stream()).filter(McpConnectorService::isMcpTool).map(McpConnectorService::connectorOf).distinct().toList()){
+            try{mcp.client(c);}catch(Exception e){throw bad(e.getMessage());}
+        }
         Map<String,Object> pinned;
-        try{pinned=readTools.pin(parameters,d.nodes().stream().flatMap(n->skill(n.skill()).permittedTools().stream()).toList());}catch(Exception e){throw bad("Source parameters: "+e.getMessage());}
+        // Built-in read tools and their run parameters are retired: agents ask their own questions (Skill.inputs).
+        if(parameters!=null && !parameters.isEmpty())throw bad("Run parameters are no longer used. Answer each agent's run questions instead.");
+        pinned=Map.of();
         if(db.queryForObject("SELECT COUNT(*) FROM workflow_executions WHERE status='running'",Integer.class)>0)throw bad("A workflow is running. Wait for it to finish.");
         List<Map<String,Object>> states=new ArrayList<>();
         for(Node n:d.nodes()){
             var s=skill(n.skill());AgentDefinition a=registry.definition(n.agent()).orElseThrow();
             // Pin instructions and identity. Edits to definitions cannot change an in-flight run.
-            var snapshot=new AgentDefinition(a.handle(),a.name(),a.function(),a.owner(),a.contact(),a.visibility(),a.tags(),a.trigger(),a.observe(),s.instructions(),a.act(),a.enabled(),a.inboundSecret(),"openai",model.modelFor(a),s.id());
+            var snapshot=new AgentDefinition(a.handle(),a.name(),a.function(),a.owner(),a.contact(),a.visibility(),a.tags(),a.trigger(),List.of(new AgentDefinition.ObserveStep("workflow_input",Map.of())),s.instructions(),a.act(),a.enabled(),a.inboundSecret(),"openai",model.modelFor(a),s.id());
             var state=new LinkedHashMap<String,Object>();state.put("node",n.id());state.put("agent",n.agent());state.put("name",a.name());state.put("function",a.function());
-            state.put("status","waiting");state.put("model",model.modelFor(a));state.put("skill",s);state.put("snapshot",json.writeValueAsString(snapshot));states.add(state);
+            state.put("status","waiting");state.put("model",model.modelFor(a));state.put("skill",s);state.put("inputs",runInputs.get(n.id()));state.put("snapshot",json.writeValueAsString(snapshot));states.add(state);
         }
         var state=new LinkedHashMap<String,Object>();state.put("id",UUID.randomUUID().toString());state.put("name",d.name());state.put("definition",d);state.put("source",source);
         state.put("status","running");state.put("provider","openai");state.put("parameters",pinned);state.put("createdAt",Instant.now().toString());state.put("nodes",states);state.put("failNode",Objects.toString(failNode,""));
         db.update("INSERT INTO workflow_executions(id,request_key,status,created_at,detail) VALUES(?,?,?,?,?)",state.get("id"),key,"running",state.get("createdAt"),json.writeValueAsString(state));
         return state;
     }
+    /**
+     * Stops a running workflow: agents not started yet never start, queued ones are cancelled, and a running one
+     * stops before its next model request or tool call. Results already posted stay.
+     */
+    public synchronized Map<String,Object> stop(String id){
+        var s=execution(id);
+        if(!"running".equals(s.get("status")))throw new ResponseStatusException(HttpStatus.CONFLICT,"This run has already finished.");
+        for(var n:nodes(s)){
+            String st=Objects.toString(n.get("status"),"");
+            if(st.equals("waiting")){n.put("status","stopped");n.put("error","Not started: the run was stopped.");}
+            else if(List.of("queued","running").contains(st) && n.get("runId") instanceof Number runId){
+                if(!runs.cancelQueued(runId.longValue(),"Stopped by a person before it started."))cancellation.stop(runId.longValue());
+                n.put("status","stopped");n.put("error","Stopped by a person before it finished.");
+            }
+        }
+        s.put("status","stopped");s.put("error","Stopped by a person.");s.put("finishedAt",Instant.now().toString());persist(s);
+        return s;
+    }
     public List<Map<String,Object>> executions(){return db.query("SELECT detail FROM workflow_executions ORDER BY created_at DESC LIMIT 30",(rs,n)->{
-        var s=decode(rs.getString(1));return Map.<String,Object>of("id",s.get("id"),"name",s.get("name"),"status",s.get("status"),"createdAt",s.get("createdAt"),"provider",s.get("provider"));});}
+        var s=decode(rs.getString(1));var states=nodes(s);
+        var out=new LinkedHashMap<String,Object>();out.put("id",s.get("id"));out.put("name",s.get("name"));out.put("status",s.get("status"));out.put("createdAt",s.get("createdAt"));out.put("finishedAt",s.get("finishedAt"));out.put("provider",s.get("provider"));
+        out.put("workflow",s.get("definition") instanceof Map<?,?> d?d.get("id"):null);out.put("done",states.stream().filter(x->"success".equals(x.get("status"))).count());out.put("total",states.size());
+        out.put("failed",states.stream().filter(x->"failed".equals(x.get("status"))).map(x->x.get("name")).toList());return out;});}
     public Map<String,Object> execution(String id){var found=db.query("SELECT detail FROM workflow_executions WHERE id=?",(rs,n)->decode(rs.getString(1)),id);if(found.isEmpty())throw bad("Unknown workflow run.");return found.get(0);}
     public Map<String,Object> evidence(long runId){
         var r=runs.record(runId).orElseThrow(()->bad("Unknown agent run."));
@@ -206,7 +325,7 @@ public class WorkflowService {
             List<Map<String,Object>> upstream=new ArrayList<>();
             for(var p:deps){@SuppressWarnings("unchecked") var result=(Map<String,Object>)p.get("result");var output=new LinkedHashMap<>(result);output.put("name",p.get("name"));output.put("agent",p.get("agent"));upstream.add(output);}
             Skill skill=json.convertValue(n.get("skill"),Skill.class);var input=new LinkedHashMap<String,Object>();input.put("workflowRun",s.get("id"));input.put("source",s.get("source"));
-            input.put("upstream",upstream);input.put("provider","openai");input.put("parameters",s.getOrDefault("parameters",Map.of()));input.put("permittedTools",skill.permittedTools());input.put("outputContract",skill.outputContract());input.put("agentSnapshot",n.get("snapshot"));
+            input.put("upstream",upstream);input.put("provider","openai");input.put("parameters",s.getOrDefault("parameters",Map.of()));input.put("permittedTools",skill.permittedTools());input.put("inputs",n.getOrDefault("inputs",Map.of()));input.put("agentSnapshot",n.get("snapshot"));
             var triggered=queue.trigger((String)n.get("agent"),"workflow","workflow:"+s.get("id")+":"+n.get("node"),"Workflow "+s.get("id"),0,json.writeValueAsString(input));
             if(!triggered.isQueued())throw new IllegalStateException("Could not queue agent: "+triggered.outcome());
             n.put("runId",triggered.runId());n.put("status","queued");n.put("input",Map.of("source",s.get("source"),"upstream",upstream));

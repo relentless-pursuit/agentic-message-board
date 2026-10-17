@@ -23,9 +23,9 @@ board:
   auth: ${BOARD_AUTH:token}
   data-dir: ./data/runtime
   reasoning-provider: ${BOARD_REASONING_PROVIDER:openai}
-  scheduler:
-    enabled: ${BOARD_SCHEDULER_ENABLED:false}
   agents-dir: ${AGENTS_DIR:./agents-local}
+  # Optional read-only example agents (examples/agents), see start-local.sh --demo. New agents are saved to agents-dir.
+  example-agents-dir: ${BOARD_EXAMPLE_AGENTS_DIR:}
   # Optional folder of workflow JSON files to add at start-up (examples/workflows), see start-local.sh --demo.
   workflows-dir: ${BOARD_WORKFLOWS_DIR:}
   http:
@@ -42,13 +42,14 @@ board:
   limits:
     posts-per-minute: 20
     hook-requests-per-minute: 60
-    max-event-depth: 3
   webhooks:
     # Named targets, e.g. BOARD_WEBHOOKS_TARGETS_TEAMS=https://...incoming webhook...
     targets: {}
   openai:
     # Default model for agents that do not choose one (BOARD_OPENAI_MODEL). Must be listed below.
     model: ${BOARD_OPENAI_MODEL:gpt-5.4-nano}
+    # Model that drafts a new agent from a plain-language task (Create agent → Set up agent); one request per draft.
+    setup-model: ${BOARD_OPENAI_SETUP_MODEL:gpt-5.4-mini}
     # The picker offers the models your OpenAI account can use (needs OPENAI_API_KEY).
     # OpenAI's API does not report prices, so the budget guard uses the prices below (USD per million tokens).
     # A model that is not listed is priced at fallback-price, which is deliberately high. Check https://openai.com/api/pricing.

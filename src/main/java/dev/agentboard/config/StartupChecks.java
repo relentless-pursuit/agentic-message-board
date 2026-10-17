@@ -42,7 +42,6 @@ public class StartupChecks implements InitializingBean {
         if (fb.getInput() <= 0 || fb.getOutput() <= 0 || fb.getCachedInput() < 0) {
             throw new IllegalStateException("board.openai.fallback-price needs positive input and output prices per million tokens.");
         }
-        props.zone();
         if(!"openai".equals(props.getReasoningProvider())) throw new IllegalStateException("board.reasoning-provider must be openai");
         var ai=props.getOpenai();
         if(ai.getMaxCalls()<0 || ai.getBudgetUsd()<0 || ai.getMaxConcurrent()<1 || ai.getMaxConcurrent()>4)

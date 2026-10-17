@@ -4,8 +4,7 @@ function: "Reports service availability and response-time changes."
 owner: sre-team
 visibility: company
 tags: [reliability, latency]
-trigger:
-  every: 5m
+trigger: {}
 observe:
   - connector: http_check
     with:

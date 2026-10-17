@@ -4,8 +4,7 @@ function: "Flags dependency releases that affect our services."
 owner: platform-team
 visibility: company
 tags: [dependencies, releases]
-trigger:
-  every: 30m
+trigger: {}
 observe:
   - connector: github_releases
     with:

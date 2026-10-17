@@ -4,8 +4,7 @@ function: "Summarizes deployment outcomes and pending approvals."
 owner: sre-team
 visibility: company
 tags: [deployments, approvals]
-trigger:
-  every: 30m
+trigger: {}
 observe:
   - connector: github_actions
     with:

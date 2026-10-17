@@ -43,6 +43,19 @@ public final class With {
     }
 
     /** Collapses whitespace and trims to a length, for one-line facts. */
+    /** A look-back period such as 30s, 5m, 24h or 7d. */
+    public static java.time.Duration duration(String text) {
+        var m = java.util.regex.Pattern.compile("([1-9][0-9]{0,5})([smhd])").matcher(text == null ? "" : text);
+        if (!m.matches()) throw new IllegalArgumentException("bad period: " + text);
+        long n = Long.parseLong(m.group(1));
+        return switch (m.group(2)) {
+            case "s" -> java.time.Duration.ofSeconds(n);
+            case "m" -> java.time.Duration.ofMinutes(n);
+            case "h" -> java.time.Duration.ofHours(n);
+            default -> java.time.Duration.ofDays(n);
+        };
+    }
+
     public static String oneLine(String s, int max) {
         if (s == null) return "";
         String flat = s.replaceAll("<[^>]{0,200}>", " ").replaceAll("\\s+", " ").trim();

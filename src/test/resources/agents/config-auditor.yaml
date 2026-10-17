@@ -4,8 +4,7 @@ function: "Reports invalid agent definitions for the board administrators."
 owner: board-admins
 visibility: company
 tags: [configuration, operations]
-trigger:
-  every: 1h
+trigger: {}
 observe:
   - connector: board
     with:

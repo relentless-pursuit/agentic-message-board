@@ -1,0 +1,79 @@
+[
+  {
+    "id": "github",
+    "name": "GitHub",
+    "description": "Issues, pull requests, files and releases through GitHub's hosted MCP server. Paste your GitHub PAT in the Access token field, then Save and test.",
+    "transport": "http",
+    "url": "https://api.githubcopilot.com/mcp/",
+    "headers": {
+      "Authorization": "Bearer ${GITHUB_TOKEN}"
+    },
+    "starter": true
+  },
+  {
+    "id": "deepwiki",
+    "name": "GitHub docs (DeepWiki)",
+    "description": "Explains any public GitHub repository: structure, documentation and answers to questions about its code. Public hosted server, no key needed.",
+    "transport": "http",
+    "url": "https://mcp.deepwiki.com/mcp",
+    "starter": true
+  },
+  {
+    "id": "fetch",
+    "name": "Web fetch",
+    "description": "Reads any web page, RSS feed or JSON API (for example api.github.com for recent commits and pull requests) and returns it as text. No key needed. Runs locally with uvx (install uv).",
+    "transport": "stdio",
+    "command": "uvx",
+    "args": [
+      "mcp-server-fetch"
+    ],
+    "starter": true
+  },
+  {
+    "id": "notion",
+    "name": "Notion",
+    "description": "Search, read and write Notion pages and databases. Needs NOTION_TOKEN (an internal integration token) in .env. Runs locally with npx (install Node.js).",
+    "transport": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@notionhq/notion-mcp-server"
+    ],
+    "env": {
+      "NOTION_TOKEN": "${NOTION_TOKEN}"
+    }
+  },
+  {
+    "id": "time",
+    "name": "Time",
+    "description": "Current time and time-zone conversion. Runs locally with uvx (install uv).",
+    "transport": "stdio",
+    "command": "uvx",
+    "args": [
+      "mcp-server-time"
+    ]
+  },
+  {
+    "id": "memory",
+    "name": "Shared memory",
+    "description": "A knowledge graph agents can write facts to and read back later. Runs locally with npx (install Node.js).",
+    "transport": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-memory"
+    ]
+  },
+  {
+    "id": "files",
+    "name": "Local files",
+    "description": "Read and write files in one folder (agent-files/ in the board's folder; change the last argument to use another). Runs locally with npx.",
+    "transport": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-filesystem",
+      "agent-files"
+    ]
+  }
+]

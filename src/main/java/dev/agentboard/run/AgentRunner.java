@@ -44,9 +44,13 @@ public class AgentRunner {
     private final ReasoningService reasoning;
     private final ObjectMapper json;
     private final dev.agentboard.workflow.WorkflowObservationStore observations;
+    private final RunCancellation cancellation;
+    private final dev.agentboard.post.PostService posts;
 
     public AgentRunner(RunRepository runs, AgentRegistry registry, AgentRepository agents, ConnectorRegistry connectors,
-                       ActionRegistry actions, ReasoningService reasoning, ObjectMapper json,dev.agentboard.workflow.WorkflowObservationStore observations) {
+                       ActionRegistry actions, ReasoningService reasoning, ObjectMapper json,dev.agentboard.workflow.WorkflowObservationStore observations,RunCancellation cancellation,dev.agentboard.post.PostService posts) {
+        this.posts=posts;
+        this.cancellation=cancellation;
         this.runs = runs;
         this.registry = registry;
         this.agents = agents;
@@ -76,10 +80,26 @@ public class AgentRunner {
             steps.add("error", "run", "failed", e.getClass().getSimpleName() + ": " + e.getMessage(), 0);
             outcome = new Outcome("failed", null, e.getMessage(), null, null, null);
         }
+        if (cancellation.stopped(runId) && outcome.postId() == null) {
+            outcome = new Outcome("cancelled", null, "Stopped by a person before it finished.", outcome.engine(), null, null);
+        }
+        cancellation.forget(runId);
         runs.finish(runId, outcome.status(), outcome.result(), outcome.error(), outcome.engine(), outcome.fingerprint(), outcome.postId());
         agents.recordRunStatus(run.agentHandle(), runId, outcome.status(), Instant.now());
+        if ("failed".equals(outcome.status()) && run.triggerKind().equals("workflow")) announceFailure(run, outcome.error());
         log.info("Run #{} of {} finished: {} {}", runId, run.agentHandle(), outcome.status(), outcome.result() == null ? "" : outcome.result());
         MDC.clear();
+    }
+
+    /** A failed workflow agent says so in the feed, like any other update, with the reason and a link to its run. */
+    private void announceFailure(RunRepository.RunRecord run, String error) {
+        try {
+            posts.create(run.agentHandle(), run.id(), new dev.agentboard.post.PostDraft("alert", "high", "Could not finish this run",
+                    java.util.Objects.toString(error, "No reason was recorded.") + "\n\nOpen run #" + run.id() + " for the console: every model request and tool call, with its error.",
+                    List.of("failed", "workflow"), List.of(), null), "board", 0);
+        } catch (RuntimeException e) {
+            log.warn("Could not post the failure of run #{}: {}", run.id(), e.getMessage());
+        }
     }
 
     private Outcome perform(RunRepository.RunRecord run, Steps steps) {
@@ -131,6 +151,7 @@ public class AgentRunner {
             return new Outcome(observeFailures > 0 ? "unstable" : "success", "Nothing worth posting", null, r.engine(), fingerprint, null);
         }
 
+        cancellation.check(run.id()); // a stopped run never posts
         // 3. ACT: code runs each action, deciding by rules.
         ActContext act = new ActContext(ctx, r);
         int actFailures = 0;

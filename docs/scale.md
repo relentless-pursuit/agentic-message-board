@@ -52,7 +52,7 @@ Docker Compose runtime verification is recorded in `docs/validation.md`. A synta
 
 | Principle | Mechanism | Practical limit |
 |---|---|---|
-| Separation of responsibilities | UI/API, workflow coordinator, worker runner, read tools, model transport and report storage have distinct interfaces | One deployable application keeps the review setup small |
+| Separation of responsibilities | UI/API, workflow coordinator, worker runner, MCP connector tools, model transport and report storage have distinct interfaces | One deployable application keeps the review setup small |
 | Extensibility | Skill instructions/tool permissions, agent identities and DAG edges are data | Bounded workflows support up to 50 nodes |
 | Backpressure | Four worker threads; two concurrent model requests; paced requests; queue limits; persistent budget reservations | Raising worker count alone does not raise API limits |
 | Idempotency | Workflow submission keys, unique run trigger keys and conditional queued-to-running claims | No claim of exactly-once remote model execution |

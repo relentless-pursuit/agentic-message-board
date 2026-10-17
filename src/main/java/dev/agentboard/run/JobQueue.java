@@ -3,7 +3,7 @@ package dev.agentboard.run;
 import java.time.Duration;
 
 /**
- * The to-do list between "deciding" (scheduler, events, Run now) and "doing" (workers).
+ * The to-do list between "deciding" (workflows, webhooks, Run now) and "doing" (workers).
  * This is the box to swap when the board grows: in-memory for one process, the database for a
  * few processes, Kafka for many. Callers never know which one they are using.
  */

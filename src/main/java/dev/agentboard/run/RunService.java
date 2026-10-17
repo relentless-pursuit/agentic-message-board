@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 
 /**
- * The only way a run gets created: by the scheduler, an event, a webhook or "Run now".
+ * The only way a run gets created: by a workflow, a webhook or "Run now".
  * Every path goes through the same duplicate and overload checks.
  * Screenshot source; excluded until its repository and worker runtime are integrated.
  */
@@ -27,7 +27,7 @@ public class RunService {
 
     public TriggerResult trigger(String agent, String kind, String key, String detail, int depth, String payload) {
         Optional<Long> active = runs.activeRun(agent);
-        boolean oneAtATime = kind.equals("schedule") || kind.equals("manual");
+        boolean oneAtATime = kind.equals("manual");
         if (oneAtATime && active.isPresent()) {
             return TriggerResult.busy(active.get());
         }

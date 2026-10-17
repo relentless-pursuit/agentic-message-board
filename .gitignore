@@ -17,3 +17,5 @@ work/
 # Agents created at runtime (like data/)
 agents-local/
 node_modules/
+# Local validation notes
+reports/

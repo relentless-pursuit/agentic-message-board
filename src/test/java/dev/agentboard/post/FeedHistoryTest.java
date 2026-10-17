@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(properties={"spring.datasource.url=jdbc:h2:mem:feed-history-tests;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
-    "board.agents-dir=target/empty-feed-test-agents","board.data-dir=target/feed-history-test-data","board.scheduler.enabled=false"})
+    "board.agents-dir=target/empty-feed-test-agents","board.data-dir=target/feed-history-test-data"})
 @AutoConfigureMockMvc
 class FeedHistoryTest {
     @Autowired FeedHistoryService history;@Autowired PostRepository posts;@Autowired RunRepository runs;

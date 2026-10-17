@@ -11,8 +11,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** The example team is data (examples/): ten YAML agents, each naming a reusable skill, and one workflow file. */
 @SpringBootTest(properties = {"spring.datasource.url=jdbc:h2:mem:example-team;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
-        "board.agents-dir=examples/agents", "board.workflows-dir=examples/workflows",
-        "board.data-dir=target/example-team-data", "board.benchmark.enabled=false", "board.scheduler.enabled=false"})
+        "board.agents-dir=target/example-team-agents", "board.example-agents-dir=examples/agents", "board.workflows-dir=examples/workflows",
+        "board.data-dir=target/example-team-data"})
 class ExampleTeamTest {
 
     @Autowired WorkflowService service;

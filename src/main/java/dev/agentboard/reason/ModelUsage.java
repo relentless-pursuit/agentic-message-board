@@ -5,7 +5,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import java.sql.Statement;
 import java.util.Map;
 
 /** Persistent attempt/budget accounting. Unknown-outcome requests retain their reservation. */
@@ -41,12 +40,5 @@ public class ModelUsage {
         int attempts=Math.max(0,config.getMaxCalls()-((Number)budget.get("calls")).intValue());
         double dollars=Math.max(0,config.getBudgetUsd()-((Number)budget.get("reserved_usd")).doubleValue());
         return Map.of("remainingAttempts",attempts,"unreservedUsd",dollars,"canStart",attempts>0 && dollars>0);
-    }
-    public Map<String,Object> snapshot() {
-        var result=jdbc.queryForMap("SELECT COUNT(*) AS attempts, COALESCE(SUM(input_tokens),0) AS input_tokens, COALESCE(SUM(cached_input_tokens),0) AS cached_input_tokens, COALESCE(SUM(output_tokens),0) AS output_tokens, COALESCE(SUM(estimated_usd),0) AS estimated_usd, COALESCE(SUM(reserved_usd),0) AS reserved_usd FROM model_usage");
-        result.put("budgetUsd",config.getBudgetUsd()); result.put("maxAttempts",config.getMaxCalls());
-        result.put("model",config.getModel());
-        result.put("pricingSource","board.openai.models and board.openai.fallback-price (USD per million tokens)");
-        return result;
     }
 }
