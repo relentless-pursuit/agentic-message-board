@@ -5,7 +5,7 @@
     {
       "id": "gh-issue-triage",
       "name": "Issue triage",
-      "instructions": "List the newest open issues of the repository (github__list_issues, up to 20). Open the two or three that look most important with github__issue_read. Group the issues by theme (bug, feature, docs, question) and name the ones that need attention first, with their numbers and links. Start your result with the line 'Repository: owner/repo'.",
+      "instructions": "List the newest open issues of the repository (github__list_issues, at most 10). Open the two that look most important with github__issue_read. Group the issues by theme (bug, feature, docs, question) and name the ones that need attention first, with their numbers and links. Start your result with the line 'Repository: owner/repo'.",
       "permittedTools": [
         "github__list_issues",
         "github__issue_read"
@@ -17,7 +17,7 @@
     {
       "id": "gh-pr-review",
       "name": "Pull request review",
-      "instructions": "List the open pull requests of the repository (github__list_pull_requests, up to 10). Read the two or three most active ones with github__pull_request_read (method get, then get_files). For each, say what it changes, which files it touches and whether it looks ready. Start your result with the line 'Repository: owner/repo'.",
+      "instructions": "List the open pull requests of the repository (github__list_pull_requests, at most 5). Read the two most active ones with github__pull_request_read (method get, then get_files). For each, say what it changes, which files it touches and whether it looks ready. Start your result with the line 'Repository: owner/repo'.",
       "permittedTools": [
         "github__list_pull_requests",
         "github__pull_request_read"
@@ -29,7 +29,7 @@
     {
       "id": "gh-commit-tracker",
       "name": "Commit tracking",
-      "instructions": "List the latest commits on the default branch (github__list_commits, up to 10). Open the two most interesting ones with github__get_commit to see the files they change. Summarise what changed recently and which parts of the code were touched. Start your result with the line 'Repository: owner/repo'.",
+      "instructions": "List the latest commits on the default branch (github__list_commits, at most 10). Open the two most interesting ones with github__get_commit to see the files they change. Summarise what changed recently and which parts of the code were touched. Start your result with the line 'Repository: owner/repo'.",
       "permittedTools": [
         "github__list_commits",
         "github__get_commit"
@@ -66,7 +66,7 @@
     {
       "id": "gh-issue-mapper",
       "name": "Issue to code mapping",
-      "instructions": "The repository is named in the upstream results. Take the two or three issues the triage marked as most important and, using the repository map, find the files they most likely concern (github__search_code, at most three searches). Give each issue its likely files and say how sure you are.",
+      "instructions": "The repository is named in the upstream results. Take the two or three issues the triage marked as most important and, using the repository map, find the files they most likely concern (github__search_code, at most three searches). Give each issue its likely files and say how sure you are. Keep the result short: at most six findings.",
       "permittedTools": [
         "github__search_code",
         "github__get_file_contents"
@@ -76,7 +76,7 @@
     {
       "id": "gh-change-impact",
       "name": "Change impact",
-      "instructions": "The repository is named in the upstream results. Combine the recent commits and open pull requests with the repository map. Explain which modules are changing, what else could be affected, and where two changes touch the same files. Read a file only when a claim needs it (at most two reads).",
+      "instructions": "The repository is named in the upstream results. Combine the recent commits and open pull requests with the repository map. Explain which modules are changing, what else could be affected, and where two changes touch the same files. Read a file only when a claim needs it (at most two reads). Keep the result short: at most six findings.",
       "permittedTools": [
         "github__get_commit",
         "github__get_file_contents"
@@ -86,21 +86,21 @@
     {
       "id": "gh-test-planner",
       "name": "Test planning",
-      "instructions": "From the upstream findings, propose concrete regression tests: what to test, where in the code, and the expected result. Cover the important issues and the recent changes. Do not claim any test was run.",
+      "instructions": "From the upstream findings, propose concrete regression tests: what to test, where in the code, and the expected result. Cover the important issues and the recent changes. Do not claim any test was run. Keep the result short: at most six findings.",
       "permittedTools": [],
       "inputs": []
     },
     {
       "id": "gh-risk-reviewer",
       "name": "Risk review",
-      "instructions": "From the upstream findings, list the risks for the next release: compatibility breaks, overlapping changes, areas with open bugs, and anything the evidence does not support. Rate each risk high, medium or low.",
+      "instructions": "From the upstream findings, list the risks for the next release: compatibility breaks, overlapping changes, areas with open bugs, and anything the evidence does not support. Rate each risk high, medium or low. Keep the result short: at most six findings.",
       "permittedTools": [],
       "inputs": []
     },
     {
       "id": "gh-briefing",
       "name": "Team briefing",
-      "instructions": "Write one short briefing for the team from the upstream findings: the state of the repository, the issues that matter, what is changing, the tests to add and the main risks. Keep each part to a few lines and keep the links.",
+      "instructions": "Write one short briefing for the team from the upstream findings: the state of the repository, the issues that matter, what is changing, the tests to add and the main risks. Keep each part to a few lines and keep the links. Keep the result short: at most six findings.",
       "permittedTools": [],
       "inputs": []
     }

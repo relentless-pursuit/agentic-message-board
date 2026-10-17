@@ -3,6 +3,7 @@ FROM maven:3.9.9-eclipse-temurin-17 AS build
 WORKDIR /src
 COPY pom.xml ./
 COPY src ./src
+COPY docs/architecture-lab.html ./docs/architecture-lab.html
 RUN mvn -B -ntp -DskipTests package
 
 FROM eclipse-temurin:17-jre-jammy
