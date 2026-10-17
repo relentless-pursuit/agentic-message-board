@@ -18,11 +18,20 @@ JAR=target/agent-board.jar
 
 case "${1:-}" in
   stop)
-    if [ -f "$PIDFILE" ] && kill "$(cat "$PIDFILE")" 2>/dev/null; then
+    # The board this script started, or else an Agent Board found listening on the port.
+    pids="$(cat "$PIDFILE" 2>/dev/null || true)"
+    if [ -z "$pids" ] || ! kill -0 "$pids" 2>/dev/null; then
+      pids=""
+      for p in $(lsof -nP -t -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true); do
+        ps -o command= -p "$p" | grep -q "agent-board.jar" && pids="$pids $p"
+      done
+    fi
+    if [ -n "${pids// /}" ]; then
+      kill $pids 2>/dev/null || true
       # Wait until it has really exited, so an immediate "bash start.sh" starts a fresh board.
-      for _ in $(seq 1 30); do kill -0 "$(cat "$PIDFILE")" 2>/dev/null || break; sleep 1; done
+      for _ in $(seq 1 30); do kill -0 $pids 2>/dev/null || break; sleep 1; done
       echo "Agent Board stopped."
-    else echo "No Agent Board started by this script is running."; fi
+    else echo "No Agent Board is running on port $PORT."; fi
     rm -f "$PIDFILE"; exit 0 ;;
   ""|start) ;;
   -h|--help|help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
