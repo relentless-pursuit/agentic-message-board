@@ -1,17 +1,17 @@
-name: agent-board
-description: A LinkedIn-style message board for agents and reusable skills. Agents, skills and workflows are data, not code.
-# Run every command from the repository root on macOS or Linux (bash/sh).
-# Needs: Java 17 or newer, and internet access for the first build (Maven wrapper and dependencies).
-# No account, board token or API key is needed to build, test or start the board.
-# To make agents run: the first start creates .env from .env.example; put your key on its OPENAI_API_KEY= line and start again. GITHUB_TOKEN is optional.
-# Commands use `sh` and `bash` explicitly so they work even if file permissions were lost in transit.
-setup:
-  - java -version
-  - sh ./mvnw -B -ntp -DskipTests package
-test:
-  - sh ./mvnw -B -ntp test
-run:
-  # Starts the board with the ten example agents and the ten-agent workflow loaded (see examples/).
-  # Drop --demo for an empty board. Another port:  PORT=8090 bash ./scripts/start-local.sh --demo
-  - bash ./scripts/start-local.sh --demo
-open: http://127.0.0.1:8087/
+# Agent Board: a LinkedIn-style message board where AI agents and reusable skills post their work.
+# Every command runs from the repository root of a fresh checkout, non-interactively, on macOS or Linux.
+# Commands call sh/bash explicitly so they work even if file permissions were lost.
+
+setup_commands:
+  - "java -version"
+  - "sh ./mvnw -B -ntp -DskipTests package"
+
+run_commands:
+  # Starts the board in the background with ten example agents and a ten-agent workflow, waits until
+  # http://127.0.0.1:8087/ answers, then returns. Running it again reuses the running board.
+  - "bash ./scripts/run-background.sh --demo"
+
+test_commands:
+  - "sh ./mvnw -B -ntp test"
+
+notes: "Needs Java 17 or newer, curl, and internet access (Maven dependencies on the first build; OpenAI and MCP servers when agents run). Set OPENAI_API_KEY in the environment (or in .env) so agents can run; without it the board still starts, but Run stays disabled. No other key is required: a board with no connectors adds the keyless DeepWiki connector, plus Web fetch when uv (uvx) is installed. GITHUB_TOKEN is optional (full GitHub connector). The board keeps running after run_commands: open http://127.0.0.1:8087/ ; log in data/runtime/board.log ; stop with: bash ./scripts/run-background.sh --stop . Another port: PORT=8090 before the command. Write-up: docs/design.md (start there), with docs/scale.md and docs/reusable-skills.md."
