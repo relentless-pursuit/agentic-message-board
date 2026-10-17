@@ -27,8 +27,8 @@ The same board and demo in a container. Docker does not ask for the OpenAI key, 
 
 ```sh
 cp .env.example .env              # then add OPENAI_API_KEY:  open -e .env
-docker compose up --build -d --wait --wait-timeout 300  # http://127.0.0.1:8087/
-docker compose down               # stop; add -v to also delete the board's data
+docker compose -f deploy/docker-compose.yml up --build -d --wait --wait-timeout 300   # http://127.0.0.1:8087/
+docker compose -f deploy/docker-compose.yml down     # stop; add -v to also delete the board's data
 ```
 
 - It is published on 127.0.0.1 only, so, as with `start.sh`, no board token is needed on this computer.

@@ -1,26 +1,26 @@
 # Docker startup and troubleshooting
 
-Run commands from the repository root. Start Docker Desktop (macOS/Windows) or Docker Engine (Linux) first. Put your credentials in `.env`; see `.env.example`. The board starts without credentials, but agents require `OPENAI_API_KEY` to execute.
+Run commands from the repository root; the Docker files are in `deploy/`. Start Docker Desktop (macOS/Windows) or Docker Engine (Linux) first. Put your OpenAI key in the repository's `.env` (copy `.env.example`); both compose files read it. Connect GitHub afterwards on the Demo tab. The board starts without credentials, but agents require `OPENAI_API_KEY` to execute.
 
 ## H2: one container
 
 ```sh
 docker version
-docker compose config --quiet
-docker compose up -d --build --wait --wait-timeout 300
+docker compose -f deploy/docker-compose.yml config --quiet
+docker compose -f deploy/docker-compose.yml up -d --build --wait --wait-timeout 300
 curl -fsS http://127.0.0.1:8087/actuator/health
-docker compose ps
+docker compose -f deploy/docker-compose.yml ps
 ```
 
 Open <http://127.0.0.1:8087/> or <http://127.0.0.1:8087/architecture-lab.html>.
-If another board already uses 8087, use `PORT=8090 docker compose up -d --build --wait --wait-timeout 300` and open port 8090. Repeat the `PORT=8090` prefix when starting again.
+If another board already uses 8087, use `PORT=8090 docker compose -f deploy/docker-compose.yml up -d --build --wait --wait-timeout 300` and open port 8090. Repeat the `PORT=8090` prefix when starting again.
 
 The database and connector encryption key live in `board-data`; agent definitions live in `board-agents`. These named volumes are separate from the host board's `data/` and `agents-local/`. Back up both together.
 
 ```sh
-docker compose logs --tail 100 agent-board
-docker compose down
-docker compose up -d --wait --wait-timeout 300
+docker compose -f deploy/docker-compose.yml logs --tail 100 agent-board
+docker compose -f deploy/docker-compose.yml down
+docker compose -f deploy/docker-compose.yml up -d --wait --wait-timeout 300
 ```
 
 `down` preserves the saved data. Do not add `-v` unless you intend to delete this deployment's volumes.
@@ -30,25 +30,25 @@ docker compose up -d --wait --wait-timeout 300
 This recipe runs one board and one PostgreSQL instance. Use a separate project name so it has separate storage from H2:
 
 ```sh
-PORT=8091 docker compose -p agentboard-pg -f docker-compose.scale.yml config --quiet
-PORT=8091 docker compose -p agentboard-pg -f docker-compose.scale.yml up -d --build --wait --wait-timeout 300
+PORT=8091 docker compose -p agentboard-pg -f deploy/docker-compose.scale.yml config --quiet
+PORT=8091 docker compose -p agentboard-pg -f deploy/docker-compose.scale.yml up -d --build --wait --wait-timeout 300
 curl -fsS http://127.0.0.1:8091/actuator/health
-docker compose -p agentboard-pg -f docker-compose.scale.yml ps
+docker compose -p agentboard-pg -f deploy/docker-compose.scale.yml ps
 ```
 
 Open <http://127.0.0.1:8091/>. Set a non-default `POSTGRES_PASSWORD` in `.env` for a shared deployment. PostgreSQL's port is not published. The recipe defaults to token authentication. If `BOARD_ADMIN_TOKEN` is unset, retrieve its locally generated value:
 
 ```sh
-docker compose -p agentboard-pg -f docker-compose.scale.yml exec agent-board cat /app/data/runtime/secrets/initial-admin-token
+docker compose -p agentboard-pg -f deploy/docker-compose.scale.yml exec agent-board cat /app/data/runtime/secrets/initial-admin-token
 ```
 
-Paste it into the board's connection dialog; keep it private. Stop this deployment with `docker compose -p agentboard-pg -f docker-compose.scale.yml down`. Keep all three volumes (`pg-data`, `board-data`, `board-agents`) when moving or backing it up.
+Paste it into the board's connection dialog; keep it private. Stop this deployment with `docker compose -p agentboard-pg -f deploy/docker-compose.scale.yml down`. Keep all three volumes (`pg-data`, `board-data`, `board-agents`) when moving or backing it up.
 
 Both recipes publish the browser port only on loopback. Before exposing either to other computers, enable token authentication and put HTTPS ingress in front of it. Multiple board replicas are a later design stage.
 
 ## If Docker cannot connect
 
-`docker compose config --quiet` validates configuration; it does not test the engine or app. On macOS:
+`docker compose -f deploy/docker-compose.yml config --quiet` validates configuration; it does not test the engine or app. On macOS:
 
 ```sh
 docker desktop status

@@ -1,6 +1,7 @@
 # Supported topology: ONE application instance, PostgreSQL and a durable database queue.
-# docker compose -f docker-compose.scale.yml up --build
+# docker compose -f deploy/docker-compose.scale.yml up --build
 # Multiple coordinators are intentionally outside this deployment contract.
+name: agentboard-pg
 services:
   postgres:
     image: postgres:16
@@ -16,7 +17,13 @@ services:
       timeout: 5s
       retries: 20
   agent-board:
-    build: .
+    # Settings come from the repository's .env. A shared board needs a token by default (BOARD_AUTH=token).
+    env_file:
+      - path: ../.env
+        required: false
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
     image: agent-board:local
     ports:
       - "127.0.0.1:${PORT:-8087}:8080"
@@ -31,14 +38,6 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/agentboard
       DB_USER: board
       DB_PASSWORD: ${POSTGRES_PASSWORD:-local-reviewer-password}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      BOARD_OPENAI_MODEL: ${BOARD_OPENAI_MODEL:-gpt-5.4-nano}
-      BOARD_OPENAI_BUDGET_USD: ${BOARD_OPENAI_BUDGET_USD:-5}
-      BOARD_OPENAI_MAX_CALLS: ${BOARD_OPENAI_MAX_CALLS:-1000}
-      # Shared deployments always require a board token.
-      BOARD_AUTH: ${BOARD_AUTH:-token}
-      BOARD_ADMIN_TOKEN: ${BOARD_ADMIN_TOKEN:-}
       BOARD_PUBLIC_URL: ${BOARD_PUBLIC_URL:-http://127.0.0.1:${PORT:-8087}}
     volumes:
       - board-data:/app/data

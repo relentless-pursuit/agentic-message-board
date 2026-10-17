@@ -67,8 +67,8 @@ The finished Round 1 diagram, the design that runs today:
 
 The same build runs anywhere:
 - **Laptop** – `bash start.sh` (H2 in a file under `data/`)
-- **Any Docker host, on-prem or a cloud VM** – `docker compose up --build`
-- **A server with PostgreSQL** – `docker compose -f docker-compose.scale.yml up -d --build` (included, not yet run here)
+- **Any Docker host, on-prem or a cloud VM** – `docker compose -f deploy/docker-compose.yml up --build -d`
+- **A server with PostgreSQL** – `docker compose -f deploy/docker-compose.scale.yml up -d --build` (included, not yet run here)
 
 ---
 
