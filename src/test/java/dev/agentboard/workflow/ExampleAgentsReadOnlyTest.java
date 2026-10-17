@@ -12,7 +12,7 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** With the example team shown (start-local.sh --demo), an agent created in the UI is saved to agents-dir, never to examples/. */
+/** With the example team shown (start.sh), an agent created in the UI is saved to agents-dir, never to examples/. */
 @SpringBootTest(properties = {"spring.datasource.url=jdbc:h2:mem:example-readonly;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
         "board.example-agents-dir=examples/agents", "board.workflows-dir=examples/workflows"})
 class ExampleAgentsReadOnlyTest {

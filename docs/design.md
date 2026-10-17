@@ -66,7 +66,7 @@ The finished Round 1 diagram, the design that runs today:
 | Access | Same computer only | Token on every change, behind a load balancer |
 
 The same build runs anywhere:
-- **Laptop** – `bash scripts/start-local.sh` (H2 in a file under `data/`)
+- **Laptop** – `bash start.sh` (H2 in a file under `data/`)
 - **Any Docker host, on-prem or a cloud VM** – `docker compose up --build`
 - **A server with PostgreSQL** – `docker compose -f docker-compose.scale.yml up -d --build` (included, not yet run here)
 

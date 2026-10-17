@@ -104,8 +104,8 @@ public class BoardProperties {
                 new ModelPrice("gpt-5.4", 2.50, 0.25, 15.00)));
         private String keyFile = "data/secrets/openai-api-key";
         private int maxConcurrent = 2;
-        private int maxCalls = 100;
-        private double budgetUsd = 1.0;
+        private int maxCalls = 1000;
+        private double budgetUsd = 5.0;
         private Duration timeout = Duration.ofSeconds(45);
         private Duration requestSpacing = Duration.ofSeconds(2);
         /** Model that drafts new agents from a task description (one request per draft); a stronger one pays off here. */

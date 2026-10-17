@@ -5,11 +5,11 @@ board:
   # Local use: no board token for a browser on this computer. Set BOARD_AUTH=token to require one.
   auth: ${BOARD_AUTH:open}
   agents-dir: ${AGENTS_DIR:./agents-local}
-  # Optional read-only example agents (examples/agents), see start-local.sh --demo. New agents are saved to agents-dir.
+  # Optional read-only example agents (examples/agents), see start.sh. New agents are saved to agents-dir.
   example-agents-dir: ${BOARD_EXAMPLE_AGENTS_DIR:}
   reasoning-provider: openai
   openai:
-    budget-usd: ${BOARD_OPENAI_BUDGET_USD:1.0}
-    max-calls: ${BOARD_OPENAI_MAX_CALLS:100}
+    budget-usd: ${BOARD_OPENAI_BUDGET_USD:5}
+    max-calls: ${BOARD_OPENAI_MAX_CALLS:1000}
     max-concurrent: 2
     request-spacing: 2s

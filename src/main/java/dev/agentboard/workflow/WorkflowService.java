@@ -158,7 +158,7 @@ public class WorkflowService {
         for(AgentDefinition d:registry.allDefinitions()){
             if(d.skill()==null || !known.contains(d.skill()))continue;
             var view=registry.view(d.handle());if(view.isEmpty())continue;
-            out.add(Map.<String,Object>of("agent",view.get(),"skill",d.skill(),"model",model.modelFor(d),"deletable",registry.deletable(d.handle())));
+            out.add(Map.<String,Object>of("agent",view.get(),"skill",d.skill(),"model",model.modelFor(d),"deletable",registry.deletable(d.handle()),"example",registry.isExample(d.handle())));
         }
         return out;
     }

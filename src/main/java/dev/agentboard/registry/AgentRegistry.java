@@ -154,6 +154,12 @@ public class AgentRegistry implements ApplicationRunner {
         return handle != null && handle.matches("[a-z0-9][a-z0-9-]{0,63}") && Files.isRegularFile(agentsDir.resolve(handle + ".yaml"));
     }
 
+    /** True for a read-only example agent (board.example-agents-dir), such as the demo team. */
+    public boolean isExample(String handle) {
+        return exampleAgentsDir != null && handle != null && handle.matches("[a-z0-9][a-z0-9-]{0,63}")
+                && Files.isRegularFile(exampleAgentsDir.resolve(handle + ".yaml")) && !deletable(handle);
+    }
+
     /** Removes an agent saved in the agents folder. Its runs and posts stay; example agents are read-only. */
     public synchronized void delete(String handle) {
         if (handle == null || !handle.matches("[a-z0-9][a-z0-9-]{0,63}")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid agent handle");
