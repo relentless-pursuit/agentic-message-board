@@ -1,7 +1,5 @@
 # Write-up
 
-Play **[architecture-lab.html](architecture-lab.html)** (open the file in a browser): build the architecture one requirement at a time, first the lightweight design that runs today, then the design at scale, with a note on every choice.
-
-Then read **[design.md](design.md)**: requirements and where each is met, architecture, data model, feed, cost control, scaling, deployment and security for Agent Board.
-
-Supporting notes: [scale.md](scale.md) (on-prem and cloud deployment, scaling steps), [reusable-skills.md](reusable-skills.md) (skills, agents and workflows as data) and [validation.md](validation.md) (what was verified).
+- **[design.md](design.md)** – the design on one page: goal, what I built, and what changes at scale.
+- **[architecture-lab.html](architecture-lab.html)** – the architecture as a game. Open the file in a browser: build the design one requirement at a time, then see the solution.
+- [scale.md](scale.md) – how to run it on-prem or in the cloud.

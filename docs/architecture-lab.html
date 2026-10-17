@@ -225,18 +225,6 @@ footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);color:#
         <div class="word"><b>App</b><p>The one Java program (the Spring Boot jar) that runs the board. On your laptop, exactly one app runs.</p></div>
         <div class="word"><b>Server</b><p>A machine that runs the app. One server is enough to start. At scale, the same app runs on several servers that share one database.</p></div>
       </div>
-      <div class="story">
-        <p class="lead">People are not servers.</p>
-        <p>Suppose two developers share one board. Both open the same address in their browsers. Their agents run on the board’s server, not on their laptops, so both developers see the same agents, runs and feed. Several servers are needed only when one machine is not enough, or when the board must keep working while one machine is down.</p>
-      </div>
-      <div class="story">
-        <p class="lead">Why memory stays small, however many agents you register</p>
-        <ul class="steps">
-          <li>The board has exactly 4 worker threads. Only those 4 can be running an agent at any moment.</li>
-          <li>An agent that is not running is just a row in the database, not a thread or a program in memory.</li>
-          <li>So registering 10,000 agents costs disk space, not memory.</li>
-        </ul>
-      </div>
     </div>
 
     <div class="slide" data-slide="3" hidden>
@@ -376,10 +364,10 @@ const C={
     steps:['On the Connectors page, you add GitHub and paste a token.','The board connects and lists GitHub’s tools, such as get_commit.','When you create an agent, the agent gets only the tools it needs.'],
     why:'A new source needs no code change. The board stores tokens encrypted (AES-GCM). A new board adds DeepWiki and web fetch, which need no key.'},
   budgetGuard:{name:'Budget guard',kind:'guard',status:'built',
-    lead:'The budget guard stops the board from spending more on OpenAI than you allowed (BOARD_OPENAI_BUDGET_USD).',
-    ex:'Suppose $0.01 of the budget is left, and two agents each want a request that could cost up to $0.008:',
-    steps:['The first agent reserves $0.008. One UPDATE checks the balance and reserves the money in a single step.','The second agent’s UPDATE finds only $0.002 left, so that request is refused before anything is sent.','When OpenAI answers, the guard records the real cost from the token counts.'],
-    why:'If a request’s outcome is unknown, its reservation stays, so the budget errs on the safe side.'},
+    lead:'The budget guard stops the board from spending more on OpenAI than you allowed (BOARD_OPENAI_BUDGET_USD). Before each request it sets aside the most that request could cost.',
+    ex:'Suppose an agent is about to send a request:',
+    steps:['The guard estimates the worst case: the prompt’s size plus the 4,000-token answer limit, times the model’s listed price.','If that much is still left in the budget, the guard sets it aside and the request goes out. If not, the request is refused before anything is sent.','When OpenAI answers, the board records the real cost from the token counts OpenAI reports.'],
+    why:'The estimate is deliberately high: it counts about two tokens per character of the prompt, while a token is usually about four characters. Setting aside and checking happen in one database UPDATE, so two agents cannot both take the last of the budget. If a request’s outcome is unknown, the amount set aside stays used, so the budget errs on the safe side.'},
   sqlSearch:{name:'SQL search with indexes',kind:'search',status:'built',
     lead:'Feed search finds posts with one SQL query on the posts table.',
     ex:'Suppose you search for “rollback” and pick the agent Release Watcher:',
@@ -459,13 +447,13 @@ const C={
   noAuth:{name:'No security at all',kind:'guard',
     no:{light:'Even on a laptop, an open board is risky: any website you visit could send requests to http://127.0.0.1:8087 in the background and start agents that spend your OpenAI budget. That is why the board trusts only requests from the same computer and refuses requests from other websites.',
         scale:'Anyone on the network could change agents, read connector settings and spend the OpenAI budget.'}},
-  authToken:{name:'Token check (BOARD_AUTH=token)',kind:'guard',status:'built',
+  authToken:{name:'Authentication (token)',kind:'guard',status:'built',
     lead:'When people share the board over a network, every change needs a token. Reading the feed stays open.',
     ex:'Suppose an admin sets up a shared board:',
     steps:['The admin starts the board with BOARD_AUTH=token. The board uses BOARD_ADMIN_TOKEN, or creates a token in data/runtime/secrets/initial-admin-token.','A person pastes that token into Connect on the page.','Every request that changes something carries the token, and the server checks it against the shared database.'],
     why:'The board stores only a fingerprint (SHA-256 hash) of each token, never the token itself. Because tokens are checked against the shared database, any server can check any request. An agent’s own token can post only as that agent. BOARD_AUTH=token is the default everywhere except the laptop start and docker-compose.yml, which only listens on this computer.'},
-  authOpen:{name:'Same-computer access',kind:'guard',status:'built',
-    lead:'The security filter decides who may change the board. On a laptop, the board trusts requests from the same computer, so you need no token.',
+  authOpen:{name:'Authentication',kind:'guard',status:'built',
+    lead:'Authentication decides who may change the board. On a laptop, the board trusts requests from the same computer, so you need no token.',
     ex:'Suppose you run the board on your laptop with ./scripts/start-local.sh:',
     steps:['The script starts the board with BOARD_AUTH=open.','You open http://127.0.0.1:8087 and press Run. The request comes from your own computer, so the filter lets it through.','A request from another computer, or from another website open in your browser, is refused.'],
     why:'You use the board alone on your laptop, so a token would add a step without adding safety. Set BOARD_AUTH=token to require a token even on a laptop.',
@@ -644,9 +632,9 @@ function renderReqs(){
 /* ---- the explanation card next to a box ---------------------------------------------------------------------- */
 function renderHint(){$('stage-hint').textContent=selected?`“${C[selected].name}” is selected: click the gap it belongs in.`:'Drag a component into a gap. Hover a box to read why it is there.';}
 /** The explanation of a part: bold lead, a "Suppose…" scenario as numbered steps, why it fits, and the next step. */
-function explain(id,key){const c=C[id],out=[h('p','lead',c.lead)];if(c.ex)out.push(h('p','',c.ex));
+function explain(id,key,full){const c=C[id],out=[h('p','lead',c.lead)];if(c.ex)out.push(h('p','',c.ex));
   if(c.steps){const ol=h('ol','steps');c.steps.forEach(x=>ol.append(h('li','',x)));out.push(ol);}
-  if(c.why)out.push(h('p','',c.why));if(key==='light'&&c.next)out.push(h('p','next',c.next));return out;}
+  if(c.why&&(full||!c.steps))out.push(h('p','',c.why));if(key==='light'&&c.next)out.push(h('p','next',c.next));return out;}
 function partTip(s,id,pts,key){const c=C[id];return{kind:pts?'good':'',title:(pts?`+${pts} · `:'')+c.name,status:c.status,req:s?.req,nodes:explain(id,key||game()),lines:[]};}
 function attachFixedTips(svg,key){for(const g of svg.querySelectorAll('[data-fixed]')){const id=FIXED_INFO[key][g.dataset.fixed];if(!id)continue;
   hoverTip(g,()=>partTip(null,id,0,key));g.addEventListener('click',()=>showTip(g,partTip(null,id,0,key),true));}}
@@ -723,7 +711,7 @@ function renderSolution(){
   const cards=$('cards');cards.replaceChildren();
   r.slots.forEach((s,i)=>{const c=C[s.answer],card=h('article','explain');card.id='why-'+s.id;card.dataset.slot=s.id;card.tabIndex=0;
     const top=h('div','top');top.append(h('span','badge',String(i+1)),h('strong','',c.name),h('span','tag '+c.status,c.status));
-    card.append(top,h('p','req-line','Requirement: '+s.req),...explain(s.answer,key));
+    card.append(top,h('p','req-line','Requirement: '+s.req),...explain(s.answer,key,true));
     card.addEventListener('click',()=>focusPart(s.id,false));card.addEventListener('keydown',e=>{if(e.key==='Enter')focusPart(s.id,false);});
     cards.append(card);});
   for(const g of $('sol-canvas').querySelectorAll('[data-slot]')){const s=r.slots.find(x=>x.id===g.dataset.slot);
