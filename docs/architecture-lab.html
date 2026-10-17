@@ -76,7 +76,15 @@ svg{display:block;width:100%;height:auto}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:10px 2px 0}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{display:inline-block;width:22px;border-top:1.6px solid #a9b5a1}.legend i.d{border-top:1.6px dashed #c2c9ba}
-/* the note: right under the canvas, where things are dropped */
+/* the explanation card that appears next to a box */
+.tip{position:fixed;z-index:60;width:340px;max-width:calc(100vw - 24px);padding:13px 15px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px #27312224;font-size:12.5px;line-height:1.55;pointer-events:none}
+.tip h3{margin:0;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tip .req-line{margin:6px 0 0;color:#587ca4;font-weight:550}
+.tip p{margin:6px 0 0}.tip .next{color:var(--muted)}
+.tip.good{border-color:#cfe6d6}.tip.good h3{color:var(--green)}
+.tip.bad{border-color:#efcfca;background:#fffaf9}.tip.bad h3{color:var(--red)}
+.slot.hover-tip .gap{stroke:var(--blue)}
+/* (older note styles, unused) */
 .note{margin-top:12px;padding:14px 16px;border-radius:12px;background:#f5f7f1;border:1px solid var(--line);font-size:13px;min-height:84px}
 .note h3{margin:0;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .note p{margin:6px 0 0;color:var(--ink)}
@@ -150,10 +158,9 @@ footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);color:#
       <div class="palette" id="palette" aria-label="Components: drag one onto a gap, or select it and then select a gap"></div>
     </aside>
     <section class="panel">
-      <div class="stage-head"><h2 id="stage-title"></h2><p>Drag a component into a gap, or click a component and then a gap.</p></div>
+      <div class="stage-head"><h2 id="stage-title"></h2><p id="stage-hint"></p></div>
       <div class="board" id="board"><svg id="canvas" viewBox="0 0 1000 560" role="img" aria-labelledby="stage-title"></svg></div>
       <div class="legend"><span><i></i>request or work flow</span><span><i class="d"></i>reads and writes data</span><span><span class="tag built">built</span>runs today</span><span><span class="tag designed">designed</span>next step, not built yet</span></div>
-      <div class="note" id="note" aria-live="polite"></div>
     </section>
     <aside class="panel side">
       <p class="panel-title">Requirements</p>
@@ -177,8 +184,8 @@ footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);color:#
         </div>
       </div>
       <div class="board"><svg id="sol-canvas" viewBox="0 0 1000 560" role="img" aria-labelledby="sol-title"></svg></div>
-      <div class="legend"><span><i></i>request or work flow</span><span><i class="d"></i>reads and writes data</span><span><span class="tag built">built</span>runs today</span><span><span class="tag designed">designed</span>next step, not built yet</span><span>Click a box or a card to match them.</span></div>
-      <div class="cards" id="cards"></div>
+      <div class="legend"><span><i></i>request or work flow</span><span><i class="d"></i>reads and writes data</span><span><span class="tag built">built</span>runs today</span><span><span class="tag designed">designed</span>next step, not built yet</span><span>Hover a box to read why it is there.</span></div>
+      <details class="rejects"><summary>Read every explanation as a list</summary><div class="cards" id="cards"></div></details>
       <details class="rejects" id="rejects"></details>
     </div>
   </section>
@@ -186,6 +193,7 @@ footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);color:#
   <footer>Every note matches the design write-up: <a href="design.md">design.md</a> (architecture, cost control, scaling) and <a href="scale.md">scale.md</a> (deployment and the steps to run several copies). “Designed” parts are not built yet.</footer>
 </div>
 
+<div id="tip" class="tip" role="tooltip" aria-live="polite" hidden></div>
 <script>
 'use strict';
 /* ---------------------------------------------------------------------------------------------------------
@@ -195,74 +203,74 @@ footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);color:#
 --------------------------------------------------------------------------------------------------------- */
 const C={
   h2:{name:'H2 file database',kind:'db',status:'built',
-    good:'H2 runs inside the app in PostgreSQL mode and keeps posts, runs, agents and the spend ledger in one file under data/. Nothing to install or operate.',
-    next:'At scale: PostgreSQL. The SQL is already PostgreSQL-compatible, so the move is a DB_URL change, not a rewrite.',
-    no:{scale:'H2 is a file owned by one process. A second copy of the app cannot share it.'}},
+    good:'H2 is a database that runs inside the app. The board keeps posts, runs, agents and spending in one file under data/. You install nothing and run no extra server.',
+    next:'At scale: PostgreSQL. H2 runs in PostgreSQL mode, so the same SQL works. Moving means changing DB_URL, not rewriting queries.',
+    no:{scale:'H2 keeps its data in one file that one process owns. A second copy of the app cannot open the same file.'}},
   postgres:{name:'PostgreSQL 16',kind:'db',status:'built',
-    good:'Every copy of the app shares one PostgreSQL. The recipe ships today (docker-compose.scale.yml with BOARD_QUEUE=database), although it has not been run in this environment. Budget reservations are single atomic UPDATEs, so they stay correct with many writers.',
-    no:{light:'The right database for a server, but on a laptop it is one more service to install and run. H2 in PostgreSQL mode gives the same SQL with zero setup.'}},
+    good:'Every copy of the app connects to one PostgreSQL database, so every copy sees the same posts, runs and budget. The board ships this setup in docker-compose.scale.yml, but it has not been run in this environment. The budget guard reserves money with one atomic UPDATE, so two copies cannot overspend together.',
+    no:{light:'PostgreSQL is a good server database. On a laptop it is one more service to install and keep running. H2 gives the same SQL with nothing to install.'}},
   memQueue:{name:'In-memory job queue',kind:'queue',status:'built',
-    good:'Runs wait in a bounded in-process queue for the workers. The run row in the database is the source of truth, so after a restart queued runs are put back. No broker to deploy.',
-    next:'At scale: the database queue (BOARD_QUEUE=database), already built.',
-    no:{scale:'It lives inside one process: work queued on one copy is invisible to workers on another.'}},
+    good:'When a workflow starts an agent, the board puts the run in a queue inside the app. A worker takes the next run from that queue. The run is also saved as a database row, so a restart puts waiting runs back in the queue. There is no broker to run.',
+    next:'At scale: the database queue (BOARD_QUEUE=database). It is already built.',
+    no:{scale:'This queue lives in the memory of one process. A run queued by one copy of the app is invisible to workers in another copy.'}},
   dbQueue:{name:'Database queue',kind:'queue',status:'built',
-    good:'Runs are rows. A worker claims one with a conditional UPDATE (queued → running), so two workers can never take the same run. Already built: set BOARD_QUEUE=database. Move to a broker only when the database is measured to be the bottleneck.'},
+    good:'Each run is a row in the runs table. A worker claims a run with one UPDATE that changes "queued" to "running" only if the row is still queued. If two workers try at once, only one UPDATE succeeds, so a run never runs twice. This is already built: set BOARD_QUEUE=database. Add a broker only when the database becomes the measured bottleneck.'},
   kafka:{name:'Kafka broker',kind:'queue',
-    no:{light:'A second distributed system to run, for tens of jobs a minute. The queue only has to feed one bounded worker pool.',
-        scale:'Not yet. The design moves to a broker only when the database queue is measured to be the bottleneck. Until then PostgreSQL claim-by-update is enough and keeps one transaction boundary.'}},
+    no:{light:'Kafka is a second distributed system to install and run. The board starts a few dozen runs a minute at most, and one in-app queue feeds the workers fine.',
+        scale:'Not yet. The design keeps the queue in PostgreSQL until measurements show the database is the bottleneck. With the queue in the database, a run and its queue entry change in one transaction.'}},
   workerPool:{name:'Bounded worker pool',kind:'service',status:'built',
-    good:'Four worker threads take runs from the queue, like Jenkins executors. Agents are rows, not threads: 10 or 10,000 registered agents cost the same memory, and only running ones use CPU. At most two model requests at a time, paced.',
-    next:'At scale: worker processes scale separately, each run claim carrying a lease.'},
+    good:'The board has four worker threads, like Jenkins executors. A worker takes a run from the queue and runs that agent. When all four workers are busy, new runs wait in the queue. An agent is a database row, not a thread, so 10 or 10,000 registered agents use the same memory. Only running agents use CPU.',
+    next:'At scale: workers run as separate processes, and each claimed run has a lease.'},
   leasedWorkers:{name:'Workers with run leases',kind:'service',status:'designed',
-    good:'Worker processes scale separately from the API. A running claim carries a lease, and a dead worker’s run is recovered by an explicit policy, never by silently re-sending a model request that may already be billed.'},
+    good:'Workers run in their own processes, so you can add workers without adding API servers. When a worker claims a run, the worker holds a lease and keeps renewing it. If the worker dies, the lease expires and an explicit rule recovers the run. The board never silently resends a model request that OpenAI may already have charged for.'},
   perAgentService:{name:'A microservice per agent',kind:'service',
-    no:{any:'Agents are data (a name plus a skill), not deployables. A service per agent turns “add an agent” into a deployment and multiplies idle processes.'}},
+    no:{any:'An agent is data: a name, a purpose and a skill. A service per agent turns “add an agent” into a deployment, and most of those services would sit idle.'}},
   springAi:{name:'Spring AI tool loop',kind:'service',status:'built',
-    good:'OpenAI is called through Spring AI. The model only proposes tool calls; the board runs each one itself, checks its arguments against the tool’s JSON Schema first and records the input, result or error. That record is the run console that explains a failure. Capped at 4 model requests and 12 tool calls per agent.'},
+    good:'The board calls OpenAI through Spring AI. The model can only ask for a tool call. The board then checks the arguments against the tool’s JSON Schema, calls the tool, and records the input and the result or error. The run console shows these records, so you see which call failed and why. Each agent gets at most 4 model requests and 12 tool calls.'},
   selfRunning:{name:'Self-running agent framework',kind:'service',
-    no:{any:'It lets the model execute tools on its own. The board needs to check every call, cap requests and show each step, so it runs the loop itself.'}},
+    no:{any:'Such a framework lets the model run tools by itself. The board must check each call, limit the requests and record every step, so the board runs the loop itself.'}},
   mcp:{name:'MCP connectors',kind:'connector',status:'built',
-    good:'Any MCP server becomes a source: GitHub, a web reader, Notion and more, added on the Connectors page without code. Its tools then appear for skills. Tokens are stored AES-GCM encrypted on the server, and a fresh board adds keyless DeepWiki and web fetch.'},
+    good:'MCP is one protocol for connecting tools. Any MCP server becomes a source, for example GitHub, a web reader or Notion. You add a server on the Connectors page without code, and its tools appear in skills. The server stores tokens encrypted (AES-GCM). A new board adds DeepWiki and web fetch, which need no key.'},
   apiClients:{name:'Hand-written API clients',kind:'connector',
-    no:{any:'One client per service means new code for every new source. MCP gives one protocol for all of them, so sources are added as data.'}},
+    no:{any:'A hand-written client for each service means new code for every new source. With MCP, adding a source is a setting, not code.'}},
   budgetGuard:{name:'Budget guard',kind:'guard',status:'built',
-    good:'Before every model request it reserves the worst-case cost against a shared budget in one atomic database update, then settles it with the real token counts. A request whose outcome is unknown keeps its reservation.'},
+    good:'Before each model request, the budget guard reserves the most that the request could cost. The guard does this with one atomic UPDATE on a shared budget row, so two requests cannot both take the last dollar. When OpenAI replies, the guard replaces the reservation with the real cost from the token counts. If the outcome is unknown, the reservation stays.'},
   sqlSearch:{name:'SQL search with indexes',kind:'search',status:'built',
-    good:'Case-insensitive search over title and body, plus filters by agent, tag, type and run, on indexed columns. Plenty for a team’s feed, and isolated in PostRepository so it can be swapped.',
-    next:'At scale: PostgreSQL full-text search (tsvector + GIN) or pg_trgm, then a read replica.'},
+    good:'Feed search looks for your text in each post’s title and body, ignoring case. You can also filter by agent, tag, type and run, which are indexed columns. This is enough for a team’s feed. The search code lives in one class, PostRepository, so it can be replaced later.',
+    next:'At scale: PostgreSQL full-text search, then a read replica.'},
   pgFts:{name:'PostgreSQL full-text search',kind:'search',status:'designed',
-    good:'A tsvector column with a GIN index (or pg_trgm for substring search) replaces LIKE, and a read replica takes feed reads when traffic grows. Search lives in PostRepository, so this is a contained change.'},
+    good:'PostgreSQL keeps each post’s words in a tsvector column with a GIN index, so a search looks the words up instead of scanning every row. pg_trgm does the same for parts of words. When reads grow, a read replica answers feed searches. Only PostRepository changes.'},
   elastic:{name:'Elasticsearch',kind:'search',
-    no:{light:'A search cluster to feed and keep in sync, for a feed that one SQL index serves.',
-        scale:'Premature: PostgreSQL full-text search with a GIN index covers millions of posts without a second datastore to keep in sync.'}},
+    no:{light:'Elasticsearch is a separate cluster that must receive every post and stay in sync. One SQL query on indexed columns already serves a team’s feed.',
+        scale:'Too early. PostgreSQL full-text search with a GIN index handles millions of posts without a second datastore to keep in sync.'}},
   redis:{name:'Redis cache',kind:'cache',
-    no:{light:'Nothing here is read-hot enough to need a cache; the feed is one indexed query.',
-        scale:'Feed reads scale first with full-text indexes and a read replica. A cache adds invalidation for posts that change as agents reply.'}},
+    no:{light:'A cache helps when the same data is read very often. The feed is one indexed query, so a cache adds work without a gain.',
+        scale:'Feed reads scale first with full-text indexes and a read replica. A cache would also need clearing every time an agent posts or replies.'}},
   registry:{name:'Agent registry (YAML + UI)',kind:'service',status:'built',
-    good:'An agent is a YAML file or a UI form that names a skill; a skill is a JSON record of instructions and permitted tools. The Java code names no agent or skill. At start-up the files are synced into the database.',
-    next:'At scale: the database becomes the source of truth and files become seed data.'},
+    good:'An agent is a YAML file or a form in the UI, and the agent names a skill. A skill is a record with instructions and the tools it may use. The Java code never names an agent or a skill, so adding one needs no code change. At start-up the board copies the files into the database.',
+    next:'At scale: the database becomes the source of truth, and the files only seed it.'},
   dbRegistry:{name:'Agents stored in the database',kind:'service',status:'designed',
-    good:'Agent and skill definitions live in the shared database and are versioned, and each run pins the version it used. YAML files become seed data. Today the files are per host.'},
+    good:'Agents and skills live in the shared database, so every copy of the app reads the same definitions. Each definition has a version, and each run records the version it used. YAML files only seed the database. Today each host reads its own files.'},
   hardcoded:{name:'Agent classes in code',kind:'service',
-    no:{any:'It breaks the core requirement: adding an agent would need a code change and a redeploy.'}},
+    no:{any:'This breaks the main requirement. Adding an agent would need a code change and a new release.'}},
   coordinator:{name:'Workflow coordinator (DAG)',kind:'service',status:'built',
-    good:'A workflow is a JSON graph. The coordinator starts agents with no unfinished inputs and releases a receiver only when every connected input has finished. Cycles are rejected, and each run pins its agents’ instructions.',
-    next:'At scale: one owner per workflow, through a renewable database lease.'},
+    good:'A workflow is a graph saved as JSON. The coordinator starts every agent that has no unfinished inputs. When an agent finishes, the coordinator checks the agents connected after it. A receiving agent starts only when all of its inputs have finished. The coordinator rejects loops, and each run keeps a copy of the instructions it started with.',
+    next:'At scale: each workflow gets one owner through a lease in the database.'},
   leaseCoordinator:{name:'Coordinator with a DB lease',kind:'service',status:'designed',
-    good:'Each workflow has an owner holding a renewable lease row. Only the owner advances it; if the owner dies, the lease expires and another copy takes over. Today one process coordinates every workflow.'},
+    good:'Each workflow gets an owner: one copy of the app that holds a lease row in the database and keeps renewing it. Only the owner advances that workflow. If the owner dies, the lease expires and another copy takes over. Today one process coordinates every workflow.'},
   cron:{name:'Cron scheduler',kind:'service',
-    no:{any:'Workflows start when someone runs them, and the unused scheduler was removed. Order comes from the graph, not the clock.'}},
+    no:{any:'Workflows start when a person runs them. Agents run in the order the graph sets, not by the clock, so the board removed its unused scheduler.'}},
   lb:{name:'Load balancer',kind:'lb',status:'designed',
-    good:'It spreads requests across copies of the app and terminates TLS (nginx, HAProxy or the cloud provider’s). On-prem, the company’s reverse proxy already does this job.'},
+    good:'A load balancer sends each request to one of several copies of the app, and it handles HTTPS. nginx, HAProxy or the cloud provider’s balancer can do this. On-prem, the company’s reverse proxy already does this job.'},
   replicas:{name:'Stateless API replicas',kind:'service',status:'designed',
-    good:'The UI and API keep no session state (tokens are checked on every request), so copies are interchangeable. Not supported yet: the coordinator and agent definitions must move into the database first.'},
+    good:'A copy of the app keeps no session in memory, because the board checks the token on every request. So any copy can answer any request. This is not supported yet: the coordinator and the agent definitions must move into the database first.'},
   outbox:{name:'Transactional outbox',kind:'db',status:'designed',
-    good:'A post and the run’s final state are written in the same transaction as an outbox row, and a publisher sends webhooks from the outbox. Retries cannot post twice.'},
+    good:'When an agent posts, the board writes the post, the run’s final state and an outbox row in one transaction. A separate publisher reads the outbox and sends the webhooks. The publisher marks each outbox row as sent, so a retry does not post twice.'},
   objectStore:{name:'Object storage',kind:'db',status:'designed',
-    good:'Large evidence reports move out of database rows into object storage, addressed by run id as they already are. The database stays small and backups stay fast.'},
+    good:'Evidence reports can be large. Object storage keeps each report as a file, named by run id, outside the database. The database stays small, and backups stay fast.'},
   k8s:{name:'Kubernetes',kind:'external',
-    no:{light:'The whole board is one jar and one container. An orchestrator adds operations without meeting a requirement.',
-        scale:'It could host the replicas, but no requirement needs it: any container platform, or one VM behind a load balancer, works. Not part of the design.'}},
+    no:{light:'The board is one jar in one container. Kubernetes adds a cluster to run without meeting a requirement.',
+        scale:'Kubernetes could host the copies, but no requirement needs it. Any container platform, or one VM behind a load balancer, also works.'}},
 };
 
 /* Rounds. Node boxes are 150 × 54 in a 1000 × 560 canvas. Fixed nodes are given; slots are the gaps. */
@@ -326,7 +334,7 @@ const store=(()=>{const k='architecture-lab-v2';try{localStorage.getItem(k);retu
 function fresh(){return{placed:{},missed:{},hints:{},score:0,misses:0,started:null,finished:null};}
 let S=store.get()||{};
 S.view=S.view||'light';S.sol=S.sol||'light';S.light=S.light||fresh();S.scale=S.scale||fresh();
-let selected=null,activeSlot=null,lastNote=null;
+let selected=null,activeSlot=null,tipTimer=null;
 const game=()=>S.view==='solution'?S.sol:S.view;            // the round on screen
 const R=()=>ROUNDS[game()],P=()=>S[game()];
 function save(){store.set(S);}
@@ -382,11 +390,12 @@ function render(){
   const r=R(),p=P();$('title').textContent=r.title;$('lede').textContent=r.lede;$('stage-title').textContent=r.stage;
   drawDiagram($('canvas'),S.view,p.placed,false);
   for(const g of $('canvas').querySelectorAll('[data-slot]')){
-    const id=g.dataset.slot;
-    if(g.classList.contains('slot')){const pick=()=>{if(selected)place(selected,id);else{activeSlot=id;render();}};g.addEventListener('click',pick);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();}});}
-    else g.addEventListener('click',()=>noteFor(r.slots.find(s=>s.id===id),p.placed[id]));
+    const id=g.dataset.slot,s=r.slots.find(x=>x.id===id),i=r.slots.indexOf(s);
+    if(g.classList.contains('slot')){const pick=()=>{if(selected)place(selected,id);else{activeSlot=id;render();}};g.addEventListener('click',pick);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();}});
+      hoverTip(g,()=>gapTip(s,i));}
+    else{hoverTip(g,()=>partTip(s,p.placed[id]));g.addEventListener('click',()=>showTip(g,partTip(s,p.placed[id]),true));}
   }
-  renderPalette();renderReqs();renderNote();
+  renderPalette();renderReqs();renderHint();
   if(p.finished&&!$('board').querySelector('.overlay'))showDone();
 }
 function renderPalette(){
@@ -402,18 +411,36 @@ function renderReqs(){
   const r=R(),p=P(),ul=$('reqs');ul.replaceChildren();
   r.slots.forEach((s,i)=>{const li=h('li'),b=h('button','req'+(p.placed[s.id]?' done':'')+(activeSlot===s.id?' active':''));b.type='button';
     const t=h('span','rt');t.append(h('span','n',(i+1)+'. '),document.createTextNode(s.req));b.append(h('span','box',p.placed[s.id]?'✓':''),t);
-    b.addEventListener('click',()=>{activeSlot=s.id;if(p.placed[s.id])noteFor(s,p.placed[s.id]);render();});li.append(b);ul.append(li);});
+    b.addEventListener('click',()=>{activeSlot=s.id;render();const g=$('canvas').querySelector(`[data-slot="${s.id}"]`);if(g)showTip(g,p.placed[s.id]?partTip(s,p.placed[s.id]):gapTip(s,i),true);});li.append(b);ul.append(li);});
   $('hint').disabled=r.slots.every(s=>p.placed[s.id]);
 }
-function renderNote(){
-  const n=$('note');n.className='note';n.replaceChildren();
-  if(!lastNote){n.append(h('h3','',selected?'Now pick a gap':'How to play'),h('p','',selected?`“${C[selected].name}” is selected. Click the gap it belongs in, or drag it there.`:'Each numbered gap meets one requirement. Put the right component in it and this note explains why it fits, and what replaces it at scale. Right first time scores 10, after a miss 4; a hint costs 2.'));return;}
-  if(lastNote.kind)n.classList.add(lastNote.kind);const head=h('h3');head.append(document.createTextNode(lastNote.title));if(lastNote.status)head.append(h('span','tag '+lastNote.status,lastNote.status));n.append(head);
-  for(const[t,cls]of lastNote.body)n.append(h('p',cls||'',t));
+/* ---- the explanation card next to a box ---------------------------------------------------------------------- */
+function renderHint(){$('stage-hint').textContent=selected?`“${C[selected].name}” is selected: click the gap it belongs in.`:'Drag a component into a gap. Hover a box to read why it is there.';}
+function partTip(s,id,pts){const c=C[id],t={kind:'good',title:(pts?`+${pts} · `:'')+c.name,status:c.status,lines:[[c.good]]};if(s)t.req=s.req;if(game()==='light'&&c.next)t.lines.push([c.next,'next']);return t;}
+function gapTip(s,i){return{kind:'',title:'Gap '+(i+1),req:s.req,lines:[['Put the component that meets this requirement here.','next']]};}
+function showTip(anchor,t,sticky){
+  const tip=$('tip');clearTimeout(tipTimer);tip.className='tip'+(t.kind?' '+t.kind:'');tip.replaceChildren();
+  const head=h('h3');head.append(document.createTextNode(t.title));if(t.status)head.append(h('span','tag '+t.status,t.status));tip.append(head);
+  if(t.req)tip.append(h('p','req-line','Requirement: '+t.req));for(const[text,cls]of t.lines)tip.append(h('p',cls||'',text));
+  tip.hidden=false;tip.dataset.sticky=sticky?'1':'';tip.dataset.anchor=anchor.dataset.slot||'';
+  // Beside the box: to the right if it fits, else to the left, else below.
+  const r=anchor.getBoundingClientRect(),w=tip.offsetWidth,ht=tip.offsetHeight,gap=10;
+  let left=r.right+gap,top=r.top;
+  if(left+w>innerWidth-8)left=r.left-w-gap;
+  if(left<8){left=Math.min(Math.max(8,r.left),innerWidth-w-8);top=r.bottom+gap;}
+  top=Math.max(8,Math.min(top,innerHeight-ht-8));tip.style.left=left+'px';tip.style.top=top+'px';
+  if(sticky)tipTimer=setTimeout(hideTip,9000);
 }
-function noteFor(s,id,pts){const c=C[id],body=[[c.good]];if(game()==='light'&&c.next)body.push([c.next,'next']);
-  lastNote={kind:'good',title:(pts?`+${pts} · `:'')+c.name,status:c.status,body};renderNote();}
-function toggleSelect(id){selected=selected===id?null:id;lastNote=null;renderPalette();renderNote();}
+function hideTip(force){const tip=$('tip');if(!force&&tip.dataset.sticky)return;clearTimeout(tipTimer);tip.hidden=true;tip.dataset.sticky='';}
+function hoverTip(g,build){
+  // A feedback card for this box (after a drop or a hint) stays until you move to another box.
+  const keep=()=>{const tip=$('tip');return !tip.hidden&&tip.dataset.sticky&&tip.dataset.anchor===g.dataset.slot;};
+  g.addEventListener('mouseenter',()=>{if(!keep())showTip(g,build(),false);});g.addEventListener('mouseleave',()=>{if(!keep())hideTip();});
+  g.addEventListener('focus',()=>showTip(g,build(),false));g.addEventListener('blur',()=>hideTip());
+}
+document.addEventListener('pointerdown',e=>{if(!e.target.closest?.('[data-slot],.req'))hideTip(true);});
+window.addEventListener('scroll',()=>hideTip(true),{passive:true});
+function toggleSelect(id){selected=selected===id?null:id;renderPalette();renderHint();}
 function tick(){const p=P();if(!p.started){p.started=Date.now();save();}}
 function place(id,slotId){
   const r=R(),p=P(),s=r.slots.find(x=>x.id===slotId);if(!s||p.placed[slotId]||p.finished)return;tick();
@@ -421,14 +448,14 @@ function place(id,slotId){
   if(s.answer===id){
     const pts=p.missed[slotId]?4:10;p.score+=pts;p.placed[slotId]=id;activeSlot=null;
     if(r.slots.every(x=>p.placed[x.id]))p.finished=Date.now();save();
-    render();noteFor(s,id,pts);return;
+    render();const g=$('canvas').querySelector(`[data-slot="${slotId}"]`);if(g&&!p.finished)showTip(g,partTip(s,id,pts),true);return;
   }
   p.misses++;p.missed[slotId]=(p.missed[slotId]||0)+1;save();
   const elsewhere=r.slots.find(x=>x.answer===id&&!p.placed[x.id]);
   const why=elsewhere?`Right component, wrong gap: it answers “${elsewhere.req}”.`:(c.no?.[game()]||c.no?.any||'It does not meet this requirement.');
-  lastNote={kind:'bad',title:'Not here: '+c.name,body:[[why],['Gap '+(r.slots.indexOf(s)+1)+' needs: '+s.req,'next']]};
   activeSlot=slotId;render();
-  const g=$('canvas').querySelector(`.slot[data-slot="${slotId}"]`);if(g){g.classList.add('shake');setTimeout(()=>g.classList.remove('shake'),400);}
+  const g=$('canvas').querySelector(`.slot[data-slot="${slotId}"]`);
+  if(g){showTip(g,{kind:'bad',title:'Not here: '+c.name,req:s.req,lines:[[why]]},true);g.classList.add('shake');setTimeout(()=>g.classList.remove('shake'),400);}
 }
 /* Pointer-based drag so it works with a mouse, a pen and a finger. A press without movement selects instead. */
 function startDrag(e,id,chip){
@@ -467,7 +494,9 @@ function renderSolution(){
     if(key==='light'&&c.next)card.append(h('p','next',c.next));
     card.addEventListener('click',()=>focusPart(s.id,false));card.addEventListener('keydown',e=>{if(e.key==='Enter')focusPart(s.id,false);});
     cards.append(card);});
-  for(const g of $('sol-canvas').querySelectorAll('[data-slot]'))g.addEventListener('click',()=>focusPart(g.dataset.slot,true));
+  for(const g of $('sol-canvas').querySelectorAll('[data-slot]')){const s=r.slots.find(x=>x.id===g.dataset.slot);
+    const t=()=>{const c=C[s.answer],x={kind:'',title:c.name,status:c.status,req:s.req,lines:[[c.good]]};if(key==='light'&&c.next)x.lines.push([c.next,'next']);return x;};
+    hoverTip(g,t);g.addEventListener('click',()=>{focusPart(s.id,false);showTip(g,t(),true);});}
   // The palette's wrong options, with the reason each one does not fit this round.
   const answers=new Set(r.slots.map(s=>s.answer)),rej=$('rejects');rej.replaceChildren();
   rej.append(h('summary','','Options that do not fit, and why ('+r.palette.filter(id=>!answers.has(id)).length+')'));const ul=h('ul');
@@ -480,15 +509,16 @@ function focusPart(slotId,scroll){
   const card=$('why-'+slotId);card?.classList.add('focus');if(scroll)card?.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function showSolution(key){S.sol=key;setView('solution');}
-function setView(v){S.view=v;selected=null;activeSlot=null;lastNote=null;$('board').querySelector('.overlay')?.remove();save();render();window.scrollTo({top:0});}
+function setView(v){S.view=v;selected=null;activeSlot=null;hideTip(true);$('board').querySelector('.overlay')?.remove();save();render();window.scrollTo({top:0});}
 
 document.querySelectorAll('[data-view]').forEach(t=>t.addEventListener('click',()=>{if(t.dataset.view==='solution')showSolution(S.view==='scale'?'scale':S.sol);else setView(t.dataset.view);}));
 document.querySelectorAll('[data-sol]').forEach(t=>t.addEventListener('click',()=>{S.sol=t.dataset.sol;save();render();}));
 $('see-solution').onclick=()=>showSolution(S.view);
 $('hint').onclick=()=>{const r=R(),p=P(),s=r.slots.find(x=>x.id===activeSlot&&!p.placed[x.id])||r.slots.find(x=>!p.placed[x.id]);if(!s)return;tick();activeSlot=s.id;
-  if(!p.hints[s.id]){p.hints[s.id]=1;p.score=Math.max(0,p.score-2);save();}lastNote={kind:'',title:'Hint for gap '+(r.slots.indexOf(s)+1),body:[[s.hint],[s.req,'next']]};render();};
+  if(!p.hints[s.id]){p.hints[s.id]=1;p.score=Math.max(0,p.score-2);save();}render();
+  const g=$('canvas').querySelector(`[data-slot="${s.id}"]`);if(g)showTip(g,{kind:'',title:'Hint for gap '+(r.slots.indexOf(s)+1),req:s.req,lines:[[s.hint]]},true);};
 $('reset').onclick=()=>{S[S.view]=fresh();setView(S.view);};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.view!=='solution'){selected=null;lastNote=null;renderPalette();renderNote();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){hideTip(true);if(S.view!=='solution'){selected=null;renderPalette();renderHint();}}});
 setInterval(()=>{if(S.view==='solution')return;const p=P();const s=p.started?Math.round(((p.finished||Date.now())-p.started)/1000):0;$('clock').textContent=fmt(s);$('score').textContent=p.score;$('miss').textContent=p.misses;},500);
 render();
 </script>
