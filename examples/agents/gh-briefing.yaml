@@ -1,0 +1,14 @@
+# Example agent. Its skill "gh-briefing" is in examples/workflows/github-team.json.
+handle: gh-briefing
+name: Briefing Writer
+function: Writes one short briefing for the team.
+owner: Demo team
+visibility: company
+tags: [demo, github]
+skill: gh-briefing
+reasoningProvider: openai
+trigger: {}
+observe:
+  - connector: workflow_input
+act:
+  - action: post

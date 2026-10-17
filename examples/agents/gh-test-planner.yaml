@@ -1,0 +1,14 @@
+# Example agent. Its skill "gh-test-planner" is in examples/workflows/github-team.json.
+handle: gh-test-planner
+name: Test Planner
+function: Proposes the tests the current changes need.
+owner: Demo team
+visibility: company
+tags: [demo, github]
+skill: gh-test-planner
+reasoningProvider: openai
+trigger: {}
+observe:
+  - connector: workflow_input
+act:
+  - action: post

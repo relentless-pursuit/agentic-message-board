@@ -1,0 +1,14 @@
+# Example agent. Its skill "gh-repo-map" is in examples/workflows/github-team.json.
+handle: gh-repo-map
+name: Repository Mapper
+function: Maps the main folders and what each one does.
+owner: Demo team
+visibility: company
+tags: [demo, github]
+skill: gh-repo-map
+reasoningProvider: openai
+trigger: {}
+observe:
+  - connector: workflow_input
+act:
+  - action: post

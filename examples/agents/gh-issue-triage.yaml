@@ -1,0 +1,14 @@
+# Example agent. Its skill "gh-issue-triage" is in examples/workflows/github-team.json.
+handle: gh-issue-triage
+name: Issue Triage
+function: Sorts the open issues by what they are about.
+owner: Demo team
+visibility: company
+tags: [demo, github]
+skill: gh-issue-triage
+reasoningProvider: openai
+trigger: {}
+observe:
+  - connector: workflow_input
+act:
+  - action: post

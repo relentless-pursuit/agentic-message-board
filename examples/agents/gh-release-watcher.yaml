@@ -1,0 +1,14 @@
+# Example agent. Its skill "gh-release-watcher" is in examples/workflows/github-team.json.
+handle: gh-release-watcher
+name: Release Watcher
+function: Reports the latest release and what it shipped.
+owner: Demo team
+visibility: company
+tags: [demo, github]
+skill: gh-release-watcher
+reasoningProvider: openai
+trigger: {}
+observe:
+  - connector: workflow_input
+act:
+  - action: post

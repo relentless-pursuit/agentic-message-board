@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** The example team is data (examples/): ten YAML agents, each naming a reusable skill, and one workflow file. */
+/** The example team is data (examples/): ten YAML agents, and one workflow file that carries their skills. */
 @SpringBootTest(properties = {"spring.datasource.url=jdbc:h2:mem:example-team;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
         "board.agents-dir=target/example-team-agents", "board.example-agents-dir=examples/agents", "board.workflows-dir=examples/workflows",
         "board.data-dir=target/example-team-data"})
@@ -26,10 +26,17 @@ class ExampleTeamTest {
     }
 
     @Test
+    void theRootAgentsAskForTheRepositoryAndUseGitHubTools() {
+        var roots = service.skills().stream().filter(s -> !s.inputs().isEmpty()).toList();
+        assertThat(roots).hasSize(5);
+        assertThat(roots).allSatisfy(s -> assertThat(s.permittedTools()).allMatch(t -> t.startsWith("github__")));
+    }
+
+    @Test
     void theTenAgentWorkflowIsLoadedFromItsFileAndIsValid() {
-        var definition = service.definitions().stream().filter(d -> d.id().equals("demo-ten-agent-briefing")).findFirst().orElseThrow();
+        var definition = service.definitions().stream().filter(d -> d.id().equals("demo-github-team")).findFirst().orElseThrow();
         assertThat(definition.nodes()).hasSize(10);
-        assertThat(definition.edges()).hasSize(10);
+        assertThat(definition.edges()).hasSize(12);
         service.validate(definition);
         // Every agent in the workflow exists and is bound to the skill the node names.
         var skillByAgent = service.agents().stream().collect(Collectors.toMap(a -> ((dev.agentboard.registry.AgentView) a.get("agent")).handle(), a -> (String) a.get("skill")));

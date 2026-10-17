@@ -7,7 +7,6 @@ import dev.agentboard.run.*;
 import dev.agentboard.post.*;
 import dev.agentboard.reason.*;
 import dev.agentboard.config.BoardProperties;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -64,12 +63,6 @@ public class WorkflowService {
                 db.update("UPDATE board_skills SET detail=? WHERE id=?",json.writeValueAsString(migrated),old.id());
             }
         }
-        try {
-            var defaults=json.readTree(new ClassPathResource("workflows/skills.json").getInputStream());
-            // Seed the example skills once, on an empty board, so a skill someone deletes stays deleted.
-            if(db.queryForObject("SELECT COUNT(*) FROM board_skills",Integer.class)==0)
-                for(var skill:defaults.path("skills")){Skill s=json.convertValue(skill,Skill.class);if(!hasSkill(s.id()))saveSkill(s);}
-        }catch(Exception e){throw new IllegalStateException("Workflow template could not be read",e);}
     }
     public List<Skill> skills(){return db.query("SELECT detail FROM board_skills ORDER BY id",(rs,n)->json.readValue(rs.getString(1),Skill.class));}
     public Map<String,Object> options(){
@@ -83,6 +76,13 @@ public class WorkflowService {
         checkTools(s.permittedTools());checkInputs(s.inputs());
         if(hasSkill(s.id()))throw bad("That skill ID already exists. Create a new revision with a new ID.");
         db.update("INSERT INTO board_skills(id,detail) VALUES(?,?)",s.id(),json.writeValueAsString(s));return s;
+    }
+    /** A skill from a workflow file. Added once; its tools are checked when a run starts, since connectors may still be connecting. */
+    public synchronized boolean addExampleSkill(Skill s){
+        if(s==null || hasSkill(s.id()))return false;
+        identifier(s.id());text(s.name(),"Skill name",60);text(s.instructions(),"Skill instructions",6000);checkInputs(s.inputs());
+        if(s.permittedTools().size()>20 || !s.permittedTools().stream().allMatch(McpConnectorService::isMcpTool))throw bad("A skill can use at most 20 MCP connector tools.");
+        db.update("INSERT INTO board_skills(id,detail) VALUES(?,?)",s.id(),json.writeValueAsString(s));return true;
     }
     public synchronized Skill updateSkill(String id,Skill s){
         skill(id);if(!id.equals(s.id()))throw bad("Skill ID cannot be changed.");text(s.name(),"Skill name",60);text(s.instructions(),"Instructions",6000);checkTools(s.permittedTools());checkInputs(s.inputs());

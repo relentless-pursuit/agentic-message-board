@@ -1,0 +1,254 @@
+{
+  "id": "demo-github-team",
+  "name": "GitHub repository team (10 agents)",
+  "skills": [
+    {
+      "id": "gh-issue-triage",
+      "name": "Issue triage",
+      "instructions": "List the newest open issues of the repository (github__list_issues, up to 20). Open the two or three that look most important with github__issue_read. Group the issues by theme (bug, feature, docs, question) and name the ones that need attention first, with their numbers and links. Start your result with the line 'Repository: owner/repo'.",
+      "permittedTools": [
+        "github__list_issues",
+        "github__issue_read"
+      ],
+      "inputs": [
+        "Which GitHub repository? (owner/repo, e.g. spring-projects/spring-ai)"
+      ]
+    },
+    {
+      "id": "gh-pr-review",
+      "name": "Pull request review",
+      "instructions": "List the open pull requests of the repository (github__list_pull_requests, up to 10). Read the two or three most active ones with github__pull_request_read (method get, then get_files). For each, say what it changes, which files it touches and whether it looks ready. Start your result with the line 'Repository: owner/repo'.",
+      "permittedTools": [
+        "github__list_pull_requests",
+        "github__pull_request_read"
+      ],
+      "inputs": [
+        "Which GitHub repository? (owner/repo, e.g. spring-projects/spring-ai)"
+      ]
+    },
+    {
+      "id": "gh-commit-tracker",
+      "name": "Commit tracking",
+      "instructions": "List the latest commits on the default branch (github__list_commits, up to 10). Open the two most interesting ones with github__get_commit to see the files they change. Summarise what changed recently and which parts of the code were touched. Start your result with the line 'Repository: owner/repo'.",
+      "permittedTools": [
+        "github__list_commits",
+        "github__get_commit"
+      ],
+      "inputs": [
+        "Which GitHub repository? (owner/repo, e.g. spring-projects/spring-ai)"
+      ]
+    },
+    {
+      "id": "gh-release-watcher",
+      "name": "Release watching",
+      "instructions": "Read the latest release (github__get_latest_release). If there is none, list the recent tags (github__list_tags). Summarise what the release shipped, any breaking or compatibility notes, and how long ago it was. Start your result with the line 'Repository: owner/repo'.",
+      "permittedTools": [
+        "github__get_latest_release",
+        "github__list_releases",
+        "github__list_tags"
+      ],
+      "inputs": [
+        "Which GitHub repository? (owner/repo, e.g. spring-projects/spring-ai)"
+      ]
+    },
+    {
+      "id": "gh-repo-map",
+      "name": "Repository map",
+      "instructions": "Read the top-level folder of the repository (github__get_file_contents with path '/') and its README. Open one or two main source folders. Describe the main modules and what each one is responsible for, with paths. Start your result with the line 'Repository: owner/repo'.",
+      "permittedTools": [
+        "github__get_file_contents",
+        "github__search_code"
+      ],
+      "inputs": [
+        "Which GitHub repository? (owner/repo, e.g. spring-projects/spring-ai)"
+      ]
+    },
+    {
+      "id": "gh-issue-mapper",
+      "name": "Issue to code mapping",
+      "instructions": "The repository is named in the upstream results. Take the two or three issues the triage marked as most important and, using the repository map, find the files they most likely concern (github__search_code, at most three searches). Give each issue its likely files and say how sure you are.",
+      "permittedTools": [
+        "github__search_code",
+        "github__get_file_contents"
+      ],
+      "inputs": []
+    },
+    {
+      "id": "gh-change-impact",
+      "name": "Change impact",
+      "instructions": "The repository is named in the upstream results. Combine the recent commits and open pull requests with the repository map. Explain which modules are changing, what else could be affected, and where two changes touch the same files. Read a file only when a claim needs it (at most two reads).",
+      "permittedTools": [
+        "github__get_commit",
+        "github__get_file_contents"
+      ],
+      "inputs": []
+    },
+    {
+      "id": "gh-test-planner",
+      "name": "Test planning",
+      "instructions": "From the upstream findings, propose concrete regression tests: what to test, where in the code, and the expected result. Cover the important issues and the recent changes. Do not claim any test was run.",
+      "permittedTools": [],
+      "inputs": []
+    },
+    {
+      "id": "gh-risk-reviewer",
+      "name": "Risk review",
+      "instructions": "From the upstream findings, list the risks for the next release: compatibility breaks, overlapping changes, areas with open bugs, and anything the evidence does not support. Rate each risk high, medium or low.",
+      "permittedTools": [],
+      "inputs": []
+    },
+    {
+      "id": "gh-briefing",
+      "name": "Team briefing",
+      "instructions": "Write one short briefing for the team from the upstream findings: the state of the repository, the issues that matter, what is changing, the tests to add and the main risks. Keep each part to a few lines and keep the links.",
+      "permittedTools": [],
+      "inputs": []
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n-gh-issue-triage",
+      "agent": "gh-issue-triage",
+      "skill": "gh-issue-triage",
+      "x": 0,
+      "y": 25
+    },
+    {
+      "id": "n-gh-pr-review",
+      "agent": "gh-pr-review",
+      "skill": "gh-pr-review",
+      "x": 0.67,
+      "y": 25
+    },
+    {
+      "id": "n-gh-commit-tracker",
+      "agent": "gh-commit-tracker",
+      "skill": "gh-commit-tracker",
+      "x": 1,
+      "y": 25
+    },
+    {
+      "id": "n-gh-release-watcher",
+      "agent": "gh-release-watcher",
+      "skill": "gh-release-watcher",
+      "x": 1,
+      "y": 330
+    },
+    {
+      "id": "n-gh-repo-map",
+      "agent": "gh-repo-map",
+      "skill": "gh-repo-map",
+      "x": 0.33,
+      "y": 25
+    },
+    {
+      "id": "n-gh-issue-mapper",
+      "agent": "gh-issue-mapper",
+      "skill": "gh-issue-mapper",
+      "x": 0.17,
+      "y": 280
+    },
+    {
+      "id": "n-gh-change-impact",
+      "agent": "gh-change-impact",
+      "skill": "gh-change-impact",
+      "x": 0.67,
+      "y": 280
+    },
+    {
+      "id": "n-gh-test-planner",
+      "agent": "gh-test-planner",
+      "skill": "gh-test-planner",
+      "x": 0.17,
+      "y": 600
+    },
+    {
+      "id": "n-gh-risk-reviewer",
+      "agent": "gh-risk-reviewer",
+      "skill": "gh-risk-reviewer",
+      "x": 0.67,
+      "y": 600
+    },
+    {
+      "id": "n-gh-briefing",
+      "agent": "gh-briefing",
+      "skill": "gh-briefing",
+      "x": 0.42,
+      "y": 890
+    }
+  ],
+  "edges": [
+    {
+      "from": "n-gh-issue-triage",
+      "to": "n-gh-issue-mapper",
+      "output": "result",
+      "input": "upstreamResults"
+    },
+    {
+      "from": "n-gh-repo-map",
+      "to": "n-gh-issue-mapper",
+      "output": "result",
+      "input": "upstreamResults"
+    },
+    {
+      "from": "n-gh-pr-review",
+      "to": "n-gh-change-impact",
+      "output": "result",
+      "input": "upstreamResults"
+    },
+    {
+      "from": "n-gh-commit-tracker",
+      "to": "n-gh-change-impact",
+      "output": "result",
+      "input": "upstreamResults"
+    },
+    {
+      "from": "n-gh-repo-map",
+      "to": "n-gh-change-impact",
+      "output": "result",
+      "input": "upstreamResults"
+    },
+    {
+      "from": "n-gh-issue-mapper",
+      "to": "n-gh-test-planner",
+      "output": "result",
+      "input": "upstreamResults"
+    },
+    {
+      "from": "n-gh-change-impact",
+      "to": "n-gh-test-planner",
+      "output": "result",
+      "input": "upstreamResults"
+    },
+    {
+      "from": "n-gh-change-impact",
+      "to": "n-gh-risk-reviewer",
+      "output": "result",
+      "input": "upstreamResults"
+    },
+    {
+      "from": "n-gh-release-watcher",
+      "to": "n-gh-risk-reviewer",
+      "output": "result",
+      "input": "upstreamResults"
+    },
+    {
+      "from": "n-gh-test-planner",
+      "to": "n-gh-briefing",
+      "output": "result",
+      "input": "upstreamResults"
+    },
+    {
+      "from": "n-gh-risk-reviewer",
+      "to": "n-gh-briefing",
+      "output": "result",
+      "input": "upstreamResults"
+    },
+    {
+      "from": "n-gh-issue-mapper",
+      "to": "n-gh-briefing",
+      "output": "result",
+      "input": "upstreamResults"
+    }
+  ]
+}

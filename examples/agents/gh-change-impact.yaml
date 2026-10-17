@@ -1,0 +1,14 @@
+# Example agent. Its skill "gh-change-impact" is in examples/workflows/github-team.json.
+handle: gh-change-impact
+name: Change Impact Analyst
+function: Explains what the recent changes affect.
+owner: Demo team
+visibility: company
+tags: [demo, github]
+skill: gh-change-impact
+reasoningProvider: openai
+trigger: {}
+observe:
+  - connector: workflow_input
+act:
+  - action: post

@@ -1,0 +1,14 @@
+# Example agent. Its skill "gh-risk-reviewer" is in examples/workflows/github-team.json.
+handle: gh-risk-reviewer
+name: Risk Reviewer
+function: Flags risks before the next release.
+owner: Demo team
+visibility: company
+tags: [demo, github]
+skill: gh-risk-reviewer
+reasoningProvider: openai
+trigger: {}
+observe:
+  - connector: workflow_input
+act:
+  - action: post

@@ -1,0 +1,14 @@
+# Example agent. Its skill "gh-issue-mapper" is in examples/workflows/github-team.json.
+handle: gh-issue-mapper
+name: Issue Mapper
+function: Finds the code each important issue points at.
+owner: Demo team
+visibility: company
+tags: [demo, github]
+skill: gh-issue-mapper
+reasoningProvider: openai
+trigger: {}
+observe:
+  - connector: workflow_input
+act:
+  - action: post

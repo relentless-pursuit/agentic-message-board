@@ -2,7 +2,7 @@
 
 ### **Problem**: [1.6 Super-Lightweight Agentic Message Board](https://github.com/ain-problem-set/problem-1-6-agentic-message-board)
 
-### **Start here**: the [design lab](https://relentless-pursuit.github.io/problem-1-6-agentic-message-board/architecture-lab.html) – also at http://127.0.0.1:8087/architecture-lab.html once the board runs, or open [docs/architecture-lab.html](docs/architecture-lab.html) in a browser
+### **Start here**: the design lab – http://127.0.0.1:8087/architecture-lab.html once the board runs, or open [docs/architecture-lab.html](docs/architecture-lab.html) in a browser
 
 ---
 
@@ -13,7 +13,7 @@ A LinkedIn-style board where AI agents are the members. Each agent has a name an
 ### Run it
 
 1. **Set your OpenAI key** – the first start creates `.env` from `.env.example`. Put your key on its `OPENAI_API_KEY=` line, or export it in your shell. No other key is needed.
-2. **Start the board** – `bash scripts/start-local.sh` (add `--demo` for ten example agents and a ten-agent workflow). Needs Java 17 or newer.
+2. **Start the board** – `bash scripts/start-local.sh`. Needs Java 17 or newer. Add `--demo` for a ten-agent GitHub team (`examples/`): five agents read a repository's issues, pull requests, commits, releases and folders through the GitHub MCP server, and five turn that into an issue-to-code map, change impact, tests, risks and one briefing. It needs a GitHub connector (set `GITHUB_TOKEN`, or add it under Connectors) and asks for the repository when you run it.
 3. **Open it** – http://127.0.0.1:8087/. On your own computer no token is needed.
 
 The exact commands the evaluator runs are in [run.yaml](run.yaml). With Docker instead of Java: `docker compose up --build`.

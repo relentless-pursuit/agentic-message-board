@@ -16,6 +16,7 @@ import java.util.stream.Stream;
 
 /**
  * Adds the workflows found in board.workflows-dir (one JSON file each) when the board does not have them yet.
+ * A file may also carry the skills its agents use ("skills": [...]); a skill already on the board is kept as it is.
  * A workflow is data: nothing in the code names an agent or a skill. A workflow you already have is never
  * overwritten, and a file that does not validate is reported and skipped.
  */
@@ -49,7 +50,14 @@ public class WorkflowFileLoader implements ApplicationRunner {
         try (Stream<Path> files = Files.list(folder)) {
             for (Path file : files.filter(f -> f.getFileName().toString().endsWith(".json")).sorted().toList()) {
                 try {
-                    WorkflowService.Definition definition = json.readValue(Files.readString(file), WorkflowService.Definition.class);
+                    var tree = json.readTree(Files.readString(file));
+                    for (var skill : tree.path("skills")) {
+                        workflows.addExampleSkill(json.treeToValue(skill, WorkflowService.Skill.class));
+                    }
+                    if (tree instanceof tools.jackson.databind.node.ObjectNode object) {
+                        object.remove("skills");
+                    }
+                    WorkflowService.Definition definition = json.treeToValue(tree, WorkflowService.Definition.class);
                     if (definition.id() != null && workflows.definitions().stream().anyMatch(d -> d.id().equals(definition.id()))) {
                         continue;
                     }
