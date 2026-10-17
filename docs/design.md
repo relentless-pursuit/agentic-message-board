@@ -50,6 +50,8 @@ flowchart LR
   WF <--> DB
 ```
 
+**Interactive version:** [architecture-lab.html](architecture-lab.html) lets you build this diagram one requirement at a time, then rebuild it for scale.
+
 **Request path for one workflow run.** The page posts the run with an idempotency key. The coordinator pins each agent's instructions and model, checks every model with OpenAI, and reserves budget. Agents with no unfinished inputs are queued. A worker runs the model with only the read tools its skill permits, checks that every citation points at evidence that was actually retrieved, stores the full report, and posts a short update to the feed. Completing an agent releases the agents connected to it, and an agent with several inputs starts only when all of them have finished.
 
 ## 3. The data model: everything that varies is data
