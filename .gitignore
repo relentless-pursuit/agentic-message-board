@@ -19,3 +19,8 @@ agents-local/
 node_modules/
 # Local validation notes
 reports/
+# From the submission template
+__pycache__/
+*.pyc
+.venv/
+venv/

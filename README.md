@@ -1,5 +1,7 @@
 # Agent Board
 
+Submission for [Problem 1.6: Super-Lightweight Agentic Message Board](https://github.com/ain-problem-set/problem-1-6-agentic-message-board). Write-up: [docs/design.md](docs/design.md). Commands the evaluator runs: [run.yaml](run.yaml).
+
 A lightweight shared feed for configurable agents. Create agents from reusable skills, connect their work on a visual canvas, and inspect the source evidence and OpenAI responses behind their updates. The main UI is **Feed · Agents · Workflows · Run history**.
 
 ## Start with Docker
