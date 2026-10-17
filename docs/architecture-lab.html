@@ -77,10 +77,12 @@ svg{display:block;width:100%;height:auto}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{display:inline-block;width:22px;border-top:1.6px solid #a9b5a1}.legend i.d{border-top:1.6px dashed #c2c9ba}
 /* the explanation card that appears next to a box */
-.tip{position:fixed;z-index:60;width:340px;max-width:calc(100vw - 24px);padding:13px 15px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px #27312224;font-size:12.5px;line-height:1.55;pointer-events:none}
+.tip{position:fixed;z-index:60;width:390px;max-width:calc(100vw - 24px);padding:13px 15px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px #27312224;font-size:12.5px;line-height:1.55;pointer-events:none}
 .tip h3{margin:0;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .tip .req-line{margin:6px 0 0;color:#587ca4;font-weight:550}
 .tip p{margin:6px 0 0}.tip .next{color:var(--muted)}
+.lead{font-weight:600}
+.steps{margin:6px 0 0;padding-left:20px}.steps li{margin:3px 0;padding-left:2px}
 .tip.good{border-color:#cfe6d6}.tip.good h3{color:var(--green)}
 .tip.bad{border-color:#efcfca;background:#fffaf9}.tip.bad h3{color:var(--red)}
 .slot.hover-tip .gap{stroke:var(--blue)}
@@ -201,77 +203,176 @@ footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);color:#
    good  = why it is the right answer for its gap,  next = what replaces it at scale,
    no    = why it is wrong in this round (keyed by round, or "any").
 --------------------------------------------------------------------------------------------------------- */
+/* Each explanation: lead (what it is and the problem it solves), ex + steps (a concrete scenario),
+   why (why it fits here), next (what replaces it at scale), no (why it is wrong in a round). */
 const C={
+  // ---- boxes that are given on the canvas ----
+  ui:{name:'Browser UI',kind:'client',status:'built',
+    lead:'The Browser UI is the web page people use: the feed, the Agents page, the workflow canvas and the run history.',
+    ex:'Suppose you want a team that summarises new pull requests:',
+    steps:['You describe the task on Create agent.','You connect agents on the Workflows canvas and press Run.','You read the results in the feed, and open the console if a run failed.'],
+    why:'The Spring Boot app serves this page itself, so there is nothing else to install.'},
+  hooks:{name:'Assistants · webhooks',kind:'client',status:'built',
+    lead:'Webhooks let another system tell the board that something happened, so an agent can start without someone clicking Run.',
+    ex:'Suppose you want a build-summary agent to run whenever a CI build finishes:',
+    steps:['The CI system finishes the build.','The CI system sends an HTTP request with the build result to /api/hooks/<agent>. That request is the webhook.','The board checks the request’s signature and time, then queues that agent.','The agent summarises the result and posts an update.'],
+    why:'The signature is made with a secret that only the CI system and the board know. The board rejects a request more than 5 minutes old, and one it has already seen, so a copied request cannot start the agent twice. AI assistants connect the other way, through the board’s own MCP endpoint (/mcp): they can list agents, search the feed and post an update.'},
+  api:{name:'REST API',kind:'service',status:'built',
+    lead:'The REST API is the one entry point for the page, webhooks and assistants. Every change needs a token with the right permission.',
+    ex:'Suppose you press Run on a workflow:',
+    steps:['The page sends POST /api/workflows/{id}/runs.','The API checks the request and the token.','The API asks the coordinator to start the workflow.'],
+    why:'On a laptop, the board accepts requests from the same computer without a token. A shared board requires tokens (BOARD_AUTH=token).'},
+  mcpServers:{name:'MCP servers',kind:'external',
+    lead:'MCP servers are outside programs that offer tools, such as GitHub’s hosted server or a local web reader.',
+    ex:'Suppose an agent needs the latest commit:',
+    steps:['The model asks for github__list_commits.','The board sends that call to GitHub’s MCP server.','GitHub’s MCP server returns the commits, and the board passes them back to the model.'],
+    why:'The board talks to every MCP server the same way, so adding a source needs no new code.'},
+  openai:{name:'OpenAI',kind:'external',
+    lead:'OpenAI runs the language model that does the agent’s thinking.',
+    ex:'In every model request:',
+    steps:['The board sends the agent’s instructions, its inputs and any tool results.','OpenAI replies with either a tool request or the final report.'],
+    why:'Every request passes the budget guard first, so the board never spends more than you allowed.'},
+  runtimeScale:{name:'Spring AI runtime',kind:'service',status:'built',
+    lead:'This part does not change at scale: the tool loop, the budget guard and the MCP connectors work the same in every copy of the app.',
+    why:'The budget guard already reserves money in the shared database, so several copies still cannot overspend together. The model request limits would need to be shared across copies too, which is a listed next step.'},
+  outside:{name:'OpenAI · MCP servers',kind:'external',
+    lead:'These services stay outside the company network. Adding copies of the app does not change them.',
+    why:'On-prem, the board, its database and its data stay on the company’s machines, but each run still sends its prompt to OpenAI.'},
+
+  // ---- Round 1 answers ----
   h2:{name:'H2 file database',kind:'db',status:'built',
-    good:'H2 is a database that runs inside the app. The board keeps posts, runs, agents and spending in one file under data/. You install nothing and run no extra server.',
-    next:'At scale: PostgreSQL. H2 runs in PostgreSQL mode, so the same SQL works. Moving means changing DB_URL, not rewriting queries.',
-    no:{scale:'H2 keeps its data in one file that one process owns. A second copy of the app cannot open the same file.'}},
-  postgres:{name:'PostgreSQL 16',kind:'db',status:'built',
-    good:'Every copy of the app connects to one PostgreSQL database, so every copy sees the same posts, runs and budget. The board ships this setup in docker-compose.scale.yml, but it has not been run in this environment. The budget guard reserves money with one atomic UPDATE, so two copies cannot overspend together.',
-    no:{light:'PostgreSQL is a good server database. On a laptop it is one more service to install and keep running. H2 gives the same SQL with nothing to install.'}},
+    lead:'H2 is a database that runs inside the app itself, so there is no database server to install.',
+    ex:'Suppose you start the board on a laptop:',
+    steps:['The app starts and opens one file, data/runtime/agent-board.mv.db.','Every post, run, agent and budget record is a row in that file.','You stop the app, and the file keeps everything for next time.'],
+    why:'H2 runs in PostgreSQL mode, so the board’s SQL also works on PostgreSQL.',
+    next:'At scale: PostgreSQL. Moving means changing one setting, DB_URL, not rewriting queries.',
+    no:{scale:'H2 is a file that one running app opens. Copies of the app on different machines cannot share one file, so each copy would see different data.'}},
   memQueue:{name:'In-memory job queue',kind:'queue',status:'built',
-    good:'When a workflow starts an agent, the board puts the run in a queue inside the app. A worker takes the next run from that queue. The run is also saved as a database row, so a restart puts waiting runs back in the queue. There is no broker to run.',
-    next:'At scale: the database queue (BOARD_QUEUE=database). It is already built.',
-    no:{scale:'This queue lives in the memory of one process. A run queued by one copy of the app is invisible to workers in another copy.'}},
-  dbQueue:{name:'Database queue',kind:'queue',status:'built',
-    good:'Each run is a row in the runs table. A worker claims a run with one UPDATE that changes "queued" to "running" only if the row is still queued. If two workers try at once, only one UPDATE succeeds, so a run never runs twice. This is already built: set BOARD_QUEUE=database. Add a broker only when the database becomes the measured bottleneck.'},
-  kafka:{name:'Kafka broker',kind:'queue',
-    no:{light:'Kafka is a second distributed system to install and run. The board starts a few dozen runs a minute at most, and one in-app queue feeds the workers fine.',
-        scale:'Not yet. The design keeps the queue in PostgreSQL until measurements show the database is the bottleneck. With the queue in the database, a run and its queue entry change in one transaction.'}},
+    lead:'A queue is a waiting line for work. This queue lives inside the app’s memory.',
+    ex:'Suppose a workflow starts three agents, but only two workers are free:',
+    steps:['The coordinator puts the three runs in the queue.','Two workers each take a run.','The third run waits until a worker finishes.'],
+    why:'Each run is also saved as a row in the database. If the app restarts, the board puts the waiting runs back in the queue. There is nothing else to install.',
+    next:'At scale: the database queue (BOARD_QUEUE=database), which is already built.',
+    no:{scale:'This queue lives in one app’s memory. A run queued on copy A is invisible to a worker on copy B, so that worker would sit idle.'}},
   workerPool:{name:'Bounded worker pool',kind:'service',status:'built',
-    good:'The board has four worker threads, like Jenkins executors. A worker takes a run from the queue and runs that agent. When all four workers are busy, new runs wait in the queue. An agent is a database row, not a thread, so 10 or 10,000 registered agents use the same memory. Only running agents use CPU.',
+    lead:'A worker is a thread that runs one agent at a time. The pool has a fixed number of workers: four.',
+    ex:'Suppose ten agents are queued:',
+    steps:['Four workers each take one run.','The other six runs wait in the queue.','When a worker finishes, it takes the next run.'],
+    why:'This works like executors in Jenkins. Memory stays bounded because an agent that is not running is only a database row, not a thread, so 10 or 10,000 registered agents cost the same memory.',
     next:'At scale: workers run as separate processes, and each claimed run has a lease.'},
-  leasedWorkers:{name:'Workers with run leases',kind:'service',status:'designed',
-    good:'Workers run in their own processes, so you can add workers without adding API servers. When a worker claims a run, the worker holds a lease and keeps renewing it. If the worker dies, the lease expires and an explicit rule recovers the run. The board never silently resends a model request that OpenAI may already have charged for.'},
-  perAgentService:{name:'A microservice per agent',kind:'service',
-    no:{any:'An agent is data: a name, a purpose and a skill. A service per agent turns “add an agent” into a deployment, and most of those services would sit idle.'}},
   springAi:{name:'Spring AI tool loop',kind:'service',status:'built',
-    good:'The board calls OpenAI through Spring AI. The model can only ask for a tool call. The board then checks the arguments against the tool’s JSON Schema, calls the tool, and records the input and the result or error. The run console shows these records, so you see which call failed and why. Each agent gets at most 4 model requests and 12 tool calls.'},
-  selfRunning:{name:'Self-running agent framework',kind:'service',
-    no:{any:'Such a framework lets the model run tools by itself. The board must check each call, limit the requests and record every step, so the board runs the loop itself.'}},
+    lead:'The tool loop is the conversation between the board and the model while an agent works. Spring AI is the library that talks to OpenAI.',
+    ex:'Suppose an agent must summarise the latest commit:',
+    steps:['The board sends the instructions and the allowed tools to OpenAI.','The model replies: call github__list_commits with owner and repo.','The board checks those arguments against the tool’s JSON Schema, calls GitHub, and sends the result back.','The model replies with the final report.'],
+    why:'The board, not the model, runs every tool call and records each input, result and error. The run console shows that record, so a failed run explains itself. Each agent gets at most 4 model requests and 12 tool calls.'},
   mcp:{name:'MCP connectors',kind:'connector',status:'built',
-    good:'MCP is one protocol for connecting tools. Any MCP server becomes a source, for example GitHub, a web reader or Notion. You add a server on the Connectors page without code, and its tools appear in skills. The server stores tokens encrypted (AES-GCM). A new board adds DeepWiki and web fetch, which need no key.'},
-  apiClients:{name:'Hand-written API clients',kind:'connector',
-    no:{any:'A hand-written client for each service means new code for every new source. With MCP, adding a source is a setting, not code.'}},
+    lead:'MCP (Model Context Protocol) is one standard way for an AI app to use tools from another program. A connector is the board’s link to one MCP server.',
+    ex:'Suppose you want agents to read GitHub:',
+    steps:['On the Connectors page, you add GitHub and paste a token.','The board connects and lists GitHub’s tools, such as get_commit.','When you create an agent, the agent gets only the tools it needs.'],
+    why:'A new source needs no code change. The board stores tokens encrypted (AES-GCM). A new board adds DeepWiki and web fetch, which need no key.'},
   budgetGuard:{name:'Budget guard',kind:'guard',status:'built',
-    good:'Before each model request, the budget guard reserves the most that the request could cost. The guard does this with one atomic UPDATE on a shared budget row, so two requests cannot both take the last dollar. When OpenAI replies, the guard replaces the reservation with the real cost from the token counts. If the outcome is unknown, the reservation stays.'},
+    lead:'The budget guard stops the board from spending more on OpenAI than you allowed (BOARD_OPENAI_BUDGET_USD).',
+    ex:'Suppose $0.01 of the budget is left, and two agents each want a request that could cost up to $0.008:',
+    steps:['The first agent reserves $0.008. One UPDATE checks the balance and reserves the money in a single step.','The second agent’s UPDATE finds only $0.002 left, so that request is refused before anything is sent.','When OpenAI answers, the guard records the real cost from the token counts.'],
+    why:'If a request’s outcome is unknown, its reservation stays, so the budget errs on the safe side.'},
   sqlSearch:{name:'SQL search with indexes',kind:'search',status:'built',
-    good:'Feed search looks for your text in each post’s title and body, ignoring case. You can also filter by agent, tag, type and run, which are indexed columns. This is enough for a team’s feed. The search code lives in one class, PostRepository, so it can be replaced later.',
+    lead:'Feed search finds posts with one SQL query on the posts table.',
+    ex:'Suppose you search for “rollback” and pick the agent Release Watcher:',
+    steps:['The query looks for “rollback” in each post’s title and body, ignoring case.','The query keeps only Release Watcher’s posts, using an indexed column.','The newest matches come first.'],
+    why:'A team’s feed has thousands of posts, not billions, so this is fast enough. The search code lives in one class, PostRepository, so it can be replaced later.',
     next:'At scale: PostgreSQL full-text search, then a read replica.'},
-  pgFts:{name:'PostgreSQL full-text search',kind:'search',status:'designed',
-    good:'PostgreSQL keeps each post’s words in a tsvector column with a GIN index, so a search looks the words up instead of scanning every row. pg_trgm does the same for parts of words. When reads grow, a read replica answers feed searches. Only PostRepository changes.'},
-  elastic:{name:'Elasticsearch',kind:'search',
-    no:{light:'Elasticsearch is a separate cluster that must receive every post and stay in sync. One SQL query on indexed columns already serves a team’s feed.',
-        scale:'Too early. PostgreSQL full-text search with a GIN index handles millions of posts without a second datastore to keep in sync.'}},
-  redis:{name:'Redis cache',kind:'cache',
-    no:{light:'A cache helps when the same data is read very often. The feed is one indexed query, so a cache adds work without a gain.',
-        scale:'Feed reads scale first with full-text indexes and a read replica. A cache would also need clearing every time an agent posts or replies.'}},
   registry:{name:'Agent registry (YAML + UI)',kind:'service',status:'built',
-    good:'An agent is a YAML file or a form in the UI, and the agent names a skill. A skill is a record with instructions and the tools it may use. The Java code never names an agent or a skill, so adding one needs no code change. At start-up the board copies the files into the database.',
+    lead:'The registry is the list of agents the board knows. Agents and skills are data, not code.',
+    ex:'Suppose you want a new agent that reviews releases:',
+    steps:['You fill in Create agent, or drop a YAML file in the agents folder.','The agent names a skill: instructions plus the tools it may use.','The board loads the agent at once. Nobody changes Java code or rebuilds the app.'],
+    why:'At start-up, the board copies the YAML files into the database, so every part of the app reads agents from one place.',
     next:'At scale: the database becomes the source of truth, and the files only seed it.'},
-  dbRegistry:{name:'Agents stored in the database',kind:'service',status:'designed',
-    good:'Agents and skills live in the shared database, so every copy of the app reads the same definitions. Each definition has a version, and each run records the version it used. YAML files only seed the database. Today each host reads its own files.'},
-  hardcoded:{name:'Agent classes in code',kind:'service',
-    no:{any:'This breaks the main requirement. Adding an agent would need a code change and a new release.'}},
   coordinator:{name:'Workflow coordinator (DAG)',kind:'service',status:'built',
-    good:'A workflow is a graph saved as JSON. The coordinator starts every agent that has no unfinished inputs. When an agent finishes, the coordinator checks the agents connected after it. A receiving agent starts only when all of its inputs have finished. The coordinator rejects loops, and each run keeps a copy of the instructions it started with.',
-    next:'At scale: each workflow gets one owner through a lease in the database.'},
+    lead:'A workflow is a graph of agents. The coordinator decides when each agent may start.',
+    ex:'Suppose agents A and B both send their results to agent C:',
+    steps:['The coordinator starts A and B, because they have no inputs.','A finishes first. C still waits, because B has not finished.','B finishes. Now C starts, with both results.'],
+    why:'The coordinator rejects loops, such as A waiting for B while B waits for A. Each run keeps a copy of the instructions it started with, so editing a skill never changes a run in progress.',
+    next:'At scale: each workflow gets one owner, through a lease in the database.'},
+
+  // ---- Round 2 answers ----
+  postgres:{name:'PostgreSQL 16',kind:'db',status:'built',
+    lead:'PostgreSQL is a database server. Several copies of the app can connect to the same PostgreSQL over the network.',
+    ex:'Why that matters: suppose the load balancer sends your new post to copy A, and your next page load to copy B:',
+    steps:['Copy A saves the post in PostgreSQL.','Copy B reads the feed from the same PostgreSQL.','You see your post, whichever copy answered.'],
+    why:'The budget stays correct too: the guard reserves money with one UPDATE that PostgreSQL applies as a single step, so two copies cannot both spend the last dollar. The board already includes this setup (docker-compose.scale.yml), but it has not been run in this environment.',
+    no:{light:'PostgreSQL is the right database for a server. On a laptop it is one more program to install and keep running, and H2 gives the same SQL with nothing to install.'}},
+  dbQueue:{name:'Database queue',kind:'queue',status:'built',
+    lead:'The database queue keeps waiting runs as rows in the runs table, so every copy of the app sees the same queue.',
+    ex:'Suppose two workers on different machines look for work at the same moment:',
+    steps:['Each worker sends: UPDATE runs SET status = \'running\' WHERE id = 7 AND status = \'queued\'.','The database applies one UPDATE first, so that worker gets run 7.','The other UPDATE finds the status already “running”, changes nothing, and that worker looks for the next run.'],
+    why:'So a run never runs twice. This is built today: set BOARD_QUEUE=database. A broker such as Kafka comes only when the database is measured to be the bottleneck.'},
+  leasedWorkers:{name:'Workers with run leases',kind:'service',status:'designed',
+    lead:'Workers run as their own processes, so you can add workers without adding web servers. A lease is a claim with an expiry time.',
+    ex:'Suppose a worker crashes while running an agent:',
+    steps:['When the worker claimed the run, it got a lease and kept renewing it.','The worker crashes, so the lease is not renewed and expires.','Another worker sees the expired lease and recovers the run by an explicit rule.'],
+    why:'The rule never silently resends a model request, because OpenAI may already have charged for the first one.'},
+  pgFts:{name:'PostgreSQL full-text search',kind:'search',status:'designed',
+    lead:'Full-text search keeps an index of the words in every post, like the index at the back of a book.',
+    ex:'Suppose there are five million posts and you search for “rollback”:',
+    steps:['Without an index, the database reads all five million posts.','With a tsvector column and a GIN index, the database looks up “rollback” and goes straight to the matching posts.'],
+    why:'pg_trgm does the same for parts of words. When reads grow, a read replica (a read-only copy of the database) answers searches. Only PostRepository changes.'},
+  dbRegistry:{name:'Agents stored in the database',kind:'service',status:'designed',
+    lead:'At scale, agents and skills live in the shared database instead of in files on each machine.',
+    ex:'Suppose copy A and copy B of the app run on different machines:',
+    steps:['You create an agent through copy A, and copy A saves it in the database.','Copy B reads the same database, so copy B sees the agent too.','Each run records the version of the agent it used, so a later edit does not change a run in progress.'],
+    why:'YAML files only seed the database. Today each machine reads its own folder, which is why this must change before running several copies.'},
   leaseCoordinator:{name:'Coordinator with a DB lease',kind:'service',status:'designed',
-    good:'Each workflow gets an owner: one copy of the app that holds a lease row in the database and keeps renewing it. Only the owner advances that workflow. If the owner dies, the lease expires and another copy takes over. Today one process coordinates every workflow.'},
-  cron:{name:'Cron scheduler',kind:'service',
-    no:{any:'Workflows start when a person runs them. Agents run in the order the graph sets, not by the clock, so the board removed its unused scheduler.'}},
+    lead:'With several copies of the app, exactly one copy must advance each workflow. Otherwise two copies could start the same agent twice.',
+    ex:'Suppose copy A owns workflow 42:',
+    steps:['Copy A writes a lease row: workflow 42, owner A, expiring in 30 seconds (an example value).','Copy A renews the lease every few seconds while it works.','Copy A crashes. The lease expires, and copy B takes over workflow 42.'],
+    why:'Today one process coordinates every workflow, so no lease is needed yet.'},
   lb:{name:'Load balancer',kind:'lb',status:'designed',
-    good:'A load balancer sends each request to one of several copies of the app, and it handles HTTPS. nginx, HAProxy or the cloud provider’s balancer can do this. On-prem, the company’s reverse proxy already does this job.'},
+    lead:'A load balancer is the single address people use. It forwards each request to one of several copies of the app.',
+    ex:'Suppose three copies of the app run:',
+    steps:['You open the board, and the load balancer forwards the request to copy 2.','Copy 2 crashes, so the load balancer stops sending requests to it.','Your next request goes to copy 1 or copy 3.'],
+    why:'It also handles HTTPS. nginx, HAProxy or the cloud provider’s balancer can do this. On-prem, the company’s reverse proxy usually already does this job.'},
   replicas:{name:'Stateless API replicas',kind:'service',status:'designed',
-    good:'A copy of the app keeps no session in memory, because the board checks the token on every request. So any copy can answer any request. This is not supported yet: the coordinator and the agent definitions must move into the database first.'},
+    lead:'Stateless means a copy of the app keeps nothing about you in memory between requests. That is what lets any copy answer any request.',
+    ex:'Suppose your first request goes to copy 1 and your second to copy 2:',
+    steps:['Each request carries your token.','Each copy checks the token itself and reads data from the shared database.','So copy 2 needs nothing that copy 1 remembered.'],
+    why:'Not supported yet: the coordinator and the agent definitions still live in one process and its files, and they must move into the database first.'},
   outbox:{name:'Transactional outbox',kind:'db',status:'designed',
-    good:'When an agent posts, the board writes the post, the run’s final state and an outbox row in one transaction. A separate publisher reads the outbox and sends the webhooks. The publisher marks each outbox row as sent, so a retry does not post twice.'},
+    lead:'The outbox keeps a post and its notification in step: no webhook for a post that was not saved, and no saved post without its webhook.',
+    ex:'Suppose an agent finishes its work:',
+    steps:['In one database transaction, the board saves the post, the run’s final state and an outbox row (“send the webhook for post 81”).','A separate publisher reads the outbox row and sends the webhook.','The publisher marks the row as sent. If the publisher crashes first, it retries, and the receiver can ignore the duplicate by its post id.'],
+    why:'Because the post and the outbox row are saved together, either both exist or neither does.'},
   objectStore:{name:'Object storage',kind:'db',status:'designed',
-    good:'Evidence reports can be large. Object storage keeps each report as a file, named by run id, outside the database. The database stays small, and backups stay fast.'},
+    lead:'Object storage (for example Amazon S3 or MinIO) keeps large files cheaply, outside the database.',
+    ex:'Suppose each run’s evidence report is 200 KB and the board does a million runs:',
+    steps:['That is about 200 GB of reports.','Kept in the database, those reports make every backup slow and large.','Kept in object storage, each report is a file named by its run id, and the database keeps only the id.'],
+    why:'The board already addresses reports by run id, so moving them is a contained change.'},
+
+  // ---- wrong options ----
+  kafka:{name:'Kafka broker',kind:'queue',
+    no:{light:'Kafka is a separate system for moving very large streams of messages between services. The board starts at most a few dozen runs a minute inside one app, so Kafka would add a cluster to run without solving a problem.',
+        scale:'Not yet. Kafka helps when the database cannot keep up with the queue. Until a measurement shows that, the database queue is enough, and a run and its queue entry change in one transaction.'}},
+  perAgentService:{name:'A microservice per agent',kind:'service',
+    no:{any:'A microservice is a separately deployed program. On this board an agent is data: a name, a purpose and a skill. A service per agent would make “add an agent” a deployment, and most of those services would sit idle.'}},
+  selfRunning:{name:'Self-running agent framework',kind:'service',
+    no:{any:'Such a framework lets the model call tools by itself. The board needs to check every call, limit the requests and record each step, so the board runs the loop itself.'}},
+  apiClients:{name:'Hand-written API clients',kind:'connector',
+    no:{any:'A hand-written client is code for one service’s API. Every new source would need new code and a release. With MCP, adding a source is a setting.'}},
+  elastic:{name:'Elasticsearch',kind:'search',
+    no:{light:'Elasticsearch is a separate search server. Every post would have to be copied into it and kept in sync, and a team’s feed is small enough for one SQL query.',
+        scale:'Too early. PostgreSQL full-text search handles millions of posts inside the database you already run, with nothing extra to keep in sync.'}},
+  redis:{name:'Redis cache',kind:'cache',
+    no:{light:'A cache keeps a copy of data in memory so repeated reads are faster. The feed is one indexed query, so a cache would add work without making anything noticeably faster.',
+        scale:'Feed reads scale first with a full-text index and a read replica. A cache would also need clearing each time an agent posts or replies, or people would see old posts.'}},
+  hardcoded:{name:'Agent classes in code',kind:'service',
+    no:{any:'If each agent were a Java class, adding an agent would need a code change, a build and a release. The main requirement is that agents are data.'}},
+  cron:{name:'Cron scheduler',kind:'service',
+    no:{any:'A cron scheduler starts work at set times. On this board, people start workflows, and agents run in the order the graph sets, so the board removed its unused scheduler.'}},
   k8s:{name:'Kubernetes',kind:'external',
-    no:{light:'The board is one jar in one container. Kubernetes adds a cluster to run without meeting a requirement.',
-        scale:'Kubernetes could host the copies, but no requirement needs it. Any container platform, or one VM behind a load balancer, also works.'}},
+    no:{light:'Kubernetes runs and restarts many containers across a cluster of machines. The board is one jar in one container, so Kubernetes would add a cluster to operate without meeting a requirement.',
+        scale:'Kubernetes could run the copies, but no requirement needs it. Any container platform, or one machine behind a load balancer, also works.'}},
 };
+/* Which explanation a given (fixed) box shows, per round. */
+const FIXED_INFO={light:{ui:'ui',ext:'hooks',api:'api',mcpsrv:'mcpServers',openai:'openai'},scale:{ui:'ui',ext:'hooks',runtime:'runtimeScale',openai:'outside'}};
 
 /* Rounds. Node boxes are 150 × 54 in a 1000 × 560 canvas. Fixed nodes are given; slots are the gaps. */
 const W=150,H=54;
@@ -371,7 +472,7 @@ function drawDiagram(svg,key,placed,solution){
   for(const[from,to,label,data]of r.edges){const rt=route(boxes.get(from),boxes.get(to));
     edges.append(el('path',{d:rt.d,class:'edge'+(data?' data':''),'marker-end':data?'':`url(#arrow-${svg.id})`}));
     if(label)edges.append(el('text',{x:rt.lx,y:rt.ly,'text-anchor':rt.anchor,class:'edge-label'},label));}
-  for(const n of r.fixed)svg.append(nodeBox(n.name,n.meta,n.kind,n.x,n.y,'fixed'));
+  for(const n of r.fixed){const g=nodeBox(n.name,n.meta,n.kind,n.x,n.y,'fixed clickable');g.dataset.fixed=n.id;g.tabIndex=0;svg.append(g);}
   r.slots.forEach((s,i)=>{
     const id=solution?s.answer:placed[s.id];
     if(id){const c=C[id],g=nodeBox(c.name,c.status==='designed'?'designed · next step':'built · runs today',c.kind,s.x,s.y,'filled clickable');g.dataset.slot=s.id;
@@ -388,7 +489,7 @@ function render(){
   const sol=S.view==='solution';$('game').hidden=sol;$('solution').hidden=!sol;$('stats').hidden=sol;
   if(sol){renderSolution();return;}
   const r=R(),p=P();$('title').textContent=r.title;$('lede').textContent=r.lede;$('stage-title').textContent=r.stage;
-  drawDiagram($('canvas'),S.view,p.placed,false);
+  drawDiagram($('canvas'),S.view,p.placed,false);attachFixedTips($('canvas'),S.view);
   for(const g of $('canvas').querySelectorAll('[data-slot]')){
     const id=g.dataset.slot,s=r.slots.find(x=>x.id===id),i=r.slots.indexOf(s);
     if(g.classList.contains('slot')){const pick=()=>{if(selected)place(selected,id);else{activeSlot=id;render();}};g.addEventListener('click',pick);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();}});
@@ -416,13 +517,19 @@ function renderReqs(){
 }
 /* ---- the explanation card next to a box ---------------------------------------------------------------------- */
 function renderHint(){$('stage-hint').textContent=selected?`“${C[selected].name}” is selected: click the gap it belongs in.`:'Drag a component into a gap. Hover a box to read why it is there.';}
-function partTip(s,id,pts){const c=C[id],t={kind:'good',title:(pts?`+${pts} · `:'')+c.name,status:c.status,lines:[[c.good]]};if(s)t.req=s.req;if(game()==='light'&&c.next)t.lines.push([c.next,'next']);return t;}
+/** The explanation of a part: bold lead, a "Suppose…" scenario as numbered steps, why it fits, and the next step. */
+function explain(id,key){const c=C[id],out=[h('p','lead',c.lead)];if(c.ex)out.push(h('p','',c.ex));
+  if(c.steps){const ol=h('ol','steps');c.steps.forEach(x=>ol.append(h('li','',x)));out.push(ol);}
+  if(c.why)out.push(h('p','',c.why));if(key==='light'&&c.next)out.push(h('p','next',c.next));return out;}
+function partTip(s,id,pts,key){const c=C[id];return{kind:pts?'good':'',title:(pts?`+${pts} · `:'')+c.name,status:c.status,req:s?.req,nodes:explain(id,key||game()),lines:[]};}
+function attachFixedTips(svg,key){for(const g of svg.querySelectorAll('[data-fixed]')){const id=FIXED_INFO[key][g.dataset.fixed];if(!id)continue;
+  hoverTip(g,()=>partTip(null,id,0,key));g.addEventListener('click',()=>showTip(g,partTip(null,id,0,key),true));}}
 function gapTip(s,i){return{kind:'',title:'Gap '+(i+1),req:s.req,lines:[['Put the component that meets this requirement here.','next']]};}
 function showTip(anchor,t,sticky){
   const tip=$('tip');clearTimeout(tipTimer);tip.className='tip'+(t.kind?' '+t.kind:'');tip.replaceChildren();
   const head=h('h3');head.append(document.createTextNode(t.title));if(t.status)head.append(h('span','tag '+t.status,t.status));tip.append(head);
-  if(t.req)tip.append(h('p','req-line','Requirement: '+t.req));for(const[text,cls]of t.lines)tip.append(h('p',cls||'',text));
-  tip.hidden=false;tip.dataset.sticky=sticky?'1':'';tip.dataset.anchor=anchor.dataset.slot||'';
+  if(t.req)tip.append(h('p','req-line','Requirement: '+t.req));for(const[text,cls]of t.lines)tip.append(h('p',cls||'',text));if(t.nodes)tip.append(...t.nodes);
+  tip.hidden=false;tip.dataset.sticky=sticky?'1':'';tip.dataset.anchor=anchor.dataset.slot||anchor.dataset.fixed||'';
   // Beside the box: to the right if it fits, else to the left, else below.
   const r=anchor.getBoundingClientRect(),w=tip.offsetWidth,ht=tip.offsetHeight,gap=10;
   let left=r.right+gap,top=r.top;
@@ -434,11 +541,11 @@ function showTip(anchor,t,sticky){
 function hideTip(force){const tip=$('tip');if(!force&&tip.dataset.sticky)return;clearTimeout(tipTimer);tip.hidden=true;tip.dataset.sticky='';}
 function hoverTip(g,build){
   // A feedback card for this box (after a drop or a hint) stays until you move to another box.
-  const keep=()=>{const tip=$('tip');return !tip.hidden&&tip.dataset.sticky&&tip.dataset.anchor===g.dataset.slot;};
+  const keep=()=>{const tip=$('tip');return !tip.hidden&&tip.dataset.sticky&&tip.dataset.anchor===(g.dataset.slot||g.dataset.fixed);};
   g.addEventListener('mouseenter',()=>{if(!keep())showTip(g,build(),false);});g.addEventListener('mouseleave',()=>{if(!keep())hideTip();});
   g.addEventListener('focus',()=>showTip(g,build(),false));g.addEventListener('blur',()=>hideTip());
 }
-document.addEventListener('pointerdown',e=>{if(!e.target.closest?.('[data-slot],.req'))hideTip(true);});
+document.addEventListener('pointerdown',e=>{if(!e.target.closest?.('[data-slot],[data-fixed],.req'))hideTip(true);});
 window.addEventListener('scroll',()=>hideTip(true),{passive:true});
 function toggleSelect(id){selected=selected===id?null:id;renderPalette();renderHint();}
 function tick(){const p=P();if(!p.started){p.started=Date.now();save();}}
@@ -486,16 +593,15 @@ function renderSolution(){
   document.querySelectorAll('[data-sol]').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.sol===key)));
   $('title').textContent='Solution';$('lede').textContent='Every part in place, with the requirement it meets and why it was chosen.';
   $('sol-title').textContent=r.stage;$('sol-lede').textContent=r.lede;
-  drawDiagram($('sol-canvas'),key,{},true);
+  drawDiagram($('sol-canvas'),key,{},true);attachFixedTips($('sol-canvas'),key);
   const cards=$('cards');cards.replaceChildren();
   r.slots.forEach((s,i)=>{const c=C[s.answer],card=h('article','explain');card.id='why-'+s.id;card.dataset.slot=s.id;card.tabIndex=0;
     const top=h('div','top');top.append(h('span','badge',String(i+1)),h('strong','',c.name),h('span','tag '+c.status,c.status));
-    card.append(top,h('p','req-line','Requirement: '+s.req),h('p','',c.good));
-    if(key==='light'&&c.next)card.append(h('p','next',c.next));
+    card.append(top,h('p','req-line','Requirement: '+s.req),...explain(s.answer,key));
     card.addEventListener('click',()=>focusPart(s.id,false));card.addEventListener('keydown',e=>{if(e.key==='Enter')focusPart(s.id,false);});
     cards.append(card);});
   for(const g of $('sol-canvas').querySelectorAll('[data-slot]')){const s=r.slots.find(x=>x.id===g.dataset.slot);
-    const t=()=>{const c=C[s.answer],x={kind:'',title:c.name,status:c.status,req:s.req,lines:[[c.good]]};if(key==='light'&&c.next)x.lines.push([c.next,'next']);return x;};
+    const t=()=>partTip(s,s.answer,0,key);
     hoverTip(g,t);g.addEventListener('click',()=>{focusPart(s.id,false);showTip(g,t(),true);});}
   // The palette's wrong options, with the reason each one does not fit this round.
   const answers=new Set(r.slots.map(s=>s.answer)),rej=$('rejects');rej.replaceChildren();
