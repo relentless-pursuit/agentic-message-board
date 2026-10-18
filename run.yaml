@@ -1,17 +1,32 @@
-# Agent Board: a LinkedIn-style message board where AI agents and reusable skills post their work.
+# Two solutions in one repository, each run below:
+#   1.6  Agent Board: a LinkedIn-style message board where AI agents and reusable skills post their work (Java).
+#   2.12 DocDrift: finds docs a code change made outdated and posts them to Agent Board (Python, standard library only).
 # Every command runs from the repository root of a fresh checkout, non-interactively, on macOS or Linux.
 # Commands call sh/bash explicitly so they work even if file permissions were lost.
 
 setup_commands:
   - "java -version"
   - "sh ./mvnw -B -ntp -DskipTests package"
+  - "python3 --version"
+  # DocDrift's example project: clones pallets/click into data/click (needs git and internet; reruns are idempotent).
+  - "python3 src/docdrift example"
 
 run_commands:
   # Starts the board in the background with the ten-agent demo, waits until http://127.0.0.1:8087/
   # answers, then returns. Running it again reuses the running board. Stop: bash ./start.sh stop
   - "bash ./start.sh"
+  # 2.12 DocDrift. Which docs did click's API changes make outdated (release 8.1.8 to click's main branch, pinned)?
+  # Uses OpenAI (OPENAI_API_KEY) to judge each place when the key is set, otherwise offline rules; then posts the
+  # result to the board started above as the agent "Docs Drift". Reports: out/docdrift/check/report.md
+  - "python3 src/docdrift check --repo data/click --base 8.1.8 --head 2247b35 --post-to-board http://127.0.0.1:8087"
+  # Docs served differently: one usage card per public API, rebuilt from the code (out/docdrift/site/index.html).
+  - "python3 src/docdrift cards --repo data/click --ref 2247b35"
+  - "python3 src/docdrift ask --repo data/click --ref 2247b35 \"show a progress bar\""
+  # Evaluation: replay click's real releases; the maintainers' later doc edits are the labels (out/docdrift/eval/eval.md).
+  - "python3 src/docdrift eval --repo data/click"
 
 test_commands:
   - "sh ./mvnw -B -ntp test"
+  - "python3 -m unittest discover -s src/docdrift/tests"
 
-notes: "Needs Java 17 or newer, curl, and internet access (Maven dependencies on the first build; OpenAI and MCP servers when agents run). Set OPENAI_API_KEY in the environment (or in .env; the first start copies .env.example to .env) so agents can run; without it the board still starts, but Run stays disabled. No other key is required: a board with no connectors adds the keyless DeepWiki connector, plus Web fetch when uv (uvx) is installed. GITHUB_TOKEN adds the GitHub connector that the ten-agent demo (Demo tab) uses. Spending limits: BOARD_OPENAI_BUDGET_USD (default 5) and BOARD_OPENAI_MAX_CALLS (default 1000). The board keeps running after run_commands: open http://127.0.0.1:8087/ ; log in data/runtime/board.log ; stop with: bash ./start.sh stop . Another port: PORT=8090 before the command. Start with the design lab: https://delightful-twilight-435b50.netlify.app (online), or http://127.0.0.1:8087/architecture-lab.html once the board runs, or open docs/architecture-lab.html in a browser. Write-up: docs/design.md."
+notes: "Needs Java 17 or newer, curl, and internet access (Maven dependencies on the first build; OpenAI and MCP servers when agents run). Set OPENAI_API_KEY in the environment (or in .env; the first start copies .env.example to .env) so agents can run; without it the board still starts, but Run stays disabled. No other key is required: a board with no connectors adds the keyless DeepWiki connector, plus Web fetch when uv (uvx) is installed. GITHUB_TOKEN adds the GitHub connector that the ten-agent demo (Demo tab) uses. Spending limits: BOARD_OPENAI_BUDGET_USD (default 5) and BOARD_OPENAI_MAX_CALLS (default 1000). The board keeps running after run_commands: open http://127.0.0.1:8087/ ; log in data/runtime/board.log ; stop with: bash ./start.sh stop . Another port: PORT=8090 before the command. Start with the design lab: https://delightful-twilight-435b50.netlify.app (online), or http://127.0.0.1:8087/architecture-lab.html once the board runs, or open docs/architecture-lab.html in a browser. Write-ups: docs/design.md (Agent Board) and docs/docdrift.md (DocDrift). DocDrift needs Python 3.10+ and git, no pip packages; the check posts to the Docs Drift agent on the board, so open the board feed after it."

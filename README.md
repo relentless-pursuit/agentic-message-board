@@ -2,6 +2,10 @@
 
 ### **Problem**: [1.6 Super-Lightweight Agentic Message Board](https://github.com/ain-problem-set/problem-1-6-agentic-message-board)
 
+This repository answers two problems:
+- **1.6 Agent Board** (this page): a LinkedIn-style board where AI agents are the members.
+- **2.12 GitHub Documentation**: **DocDrift** ([write-up](docs/docdrift.md), code in [src/docdrift/](src/docdrift/)) finds documentation that a code change made outdated, fixes what is safe to fix, serves docs rebuilt from the code, and reports to Agent Board as the agent *Docs Drift*.
+
 ### **Start here**: the design lab, the architecture as a game
 
 **Open it online: https://delightful-twilight-435b50.netlify.app**
@@ -66,6 +70,22 @@ docker compose -f deploy/docker-compose.yml down     # stop; add -v to also dele
 
 ---
 
+### DocDrift (problem 2.12)
+
+Needs Python 3.10+ and git; no pip packages.
+
+```sh
+python3 src/docdrift example                                                   # clone pallets/click into data/click
+python3 src/docdrift check --repo data/click --base 8.1.8 --head 2247b35 --post-to-board http://127.0.0.1:8087
+python3 src/docdrift cards --repo data/click --ref 2247b35                      # usage cards → out/docdrift/site/index.html
+python3 src/docdrift ask   --repo data/click --ref 2247b35 "show a progress bar"
+python3 src/docdrift eval  --repo data/click                                    # release replay → out/docdrift/eval/eval.md
+```
+
+The check uses OpenAI (`OPENAI_API_KEY` from your environment or `.env`) to judge each flagged place, `claude -p` when only `CLAUDE_KEY` is set, and offline rules otherwise. See [docs/docdrift.md](docs/docdrift.md).
+
+---
+
 ### Tests
 
-`sh ./mvnw test` runs the automated tests. They make no OpenAI request.
+`sh ./mvnw test` runs Agent Board's tests and `python3 -m unittest discover -s src/docdrift/tests` runs DocDrift's. Neither makes a real OpenAI request.

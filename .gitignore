@@ -24,3 +24,5 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+# DocDrift output
+out/
