@@ -2,7 +2,7 @@
 
 ### **Problem**: [1.6 Super-Lightweight Agentic Message Board](https://github.com/ain-problem-set/problem-1-6-agentic-message-board)
 
-### **Explore the design**: open [architecture-lab.html](architecture-lab.html) in a browser
+### **Explore the design**: https://delightful-twilight-435b50.netlify.app (or open [architecture-lab.html](architecture-lab.html) in a browser)
 
 ---
 

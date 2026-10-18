@@ -4,9 +4,11 @@
 
 ### **Start here**: the design lab, the architecture as a game
 
-[![The design lab: drag each component into the gap that needs it](docs/lab-preview.png)](docs/architecture-lab.html)
+**Open it online: https://delightful-twilight-435b50.netlify.app**
 
-- **Without running anything:** clone the repo and open `docs/architecture-lab.html` in a browser. It is one self-contained file. (GitHub shows it as code, because a private repo cannot host web pages.)
+[![The design lab: drag each component into the gap that needs it](docs/lab-preview.png)](https://delightful-twilight-435b50.netlify.app)
+
+- **Offline:** clone the repo and open `docs/architecture-lab.html` in a browser. It is one self-contained file. (GitHub shows it as code, because a private repo cannot host web pages.)
 - **With the board running** (`bash start.sh`, which `run.yaml` also runs): http://127.0.0.1:8087/architecture-lab.html
 
 ---
