@@ -110,7 +110,7 @@ Doc text is sent to the model between markers, as data, with the instruction not
 
 ### Current status and future work
 
-Built and tested: detection, the OpenAI, `claude -p` and rules reasoners, guardrails, the patch, reports, the Agent Board post, cards, `ask`, the webhook service, and 17 offline tests. The model paths are tested against a fake OpenAI server and a fake `claude` CLI. One live OpenAI run on click: 6 calls, $0.005, 12 s. All six verdicts were correct, and all six fixes were rightly blocked.
+Built and tested: detection, the OpenAI, `claude -p` and rules reasoners, guardrails, the patch, reports, the Agent Board post, cards, `ask`, the webhook service, and 16 offline tests. The model paths are tested against a fake OpenAI server and a fake `claude` CLI. One live OpenAI run on click: 6 calls, $0.005, 12 s. All six verdicts were correct, and all six fixes were rightly blocked.
 
 Next steps:
 - Measure the live verdicts on more releases and projects.
