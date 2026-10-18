@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, field
 
 from .api import Api
-from .docscan import Finding, scan
+from .docscan import DIRECTIVE, Finding, scan
 
 URL = re.compile(r"https?://[^\s)>\]\"']+")
 SECRET = re.compile(r"(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY)")
@@ -62,10 +62,31 @@ def check(f: Finding, replacement: str, api: Api, known_builtins: set[str] | Non
     for before, after in zip(_python_blocks(old), _python_blocks(replacement)):
         if _parses(before) and not _parses(after):
             fails.append("a Python example no longer parses")
+    # An API-reference entry (autoclass, autofunction...) is never edited automatically: dropping it, or adding a
+    # deprecation note, is a person's decision. Rewriting it to another class documents that class twice.
+    changed_lines = [a for a, b in zip(old_lines, new_lines) if a != b] + old_lines[len(new_lines):]
+    if any(DIRECTIVE.search(l) for l in changed_lines):
+        fails.append("edits an API-reference entry (autoclass/autofunction); a person decides")
+    # A replacement may only bring in the name the project itself gives: the target of a rename, or the
+    # "Use 'X' instead" of a deprecation. Any other API name is the model's guess.
+    allowed = set(replacement_names(f.change))
+    new_api_names = {w for w in re.findall(r"[A-Za-z_]\w*", replacement) if w in api.names} - set(re.findall(r"[A-Za-z_]\w*", old))
+    guessed = new_api_names - allowed
+    if guessed:
+        fails.append(f"replaces {f.change.old.name} with {', '.join(sorted(guessed))}, which the project does not name as its replacement")
     # The edit must remove the outdated use it was made for.
     if scan({f.file: replacement}, [f.change], api):
         fails.append("the outdated reference is still there after the edit")
     return Check(not fails, fails)
+
+
+def replacement_names(change) -> list[str]:
+    """The names the project itself says replace an old API."""
+    names = []
+    if change.new is not None and change.kind in ("renamed", "param_renamed"):
+        names.append(change.new.name)
+    names += re.findall(r"Use '(?:[\w]+\.)*([\w]+)' instead", change.note or "")
+    return names
 
 
 def _parses(code: str) -> bool:

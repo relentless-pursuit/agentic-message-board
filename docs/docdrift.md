@@ -56,7 +56,7 @@ I didn't hand-label anything. The click maintainers already did: their later doc
 | **All** | | **19** | **19** | **1.0** | **0.86** |
 
 - **Precision is a lower bound.** A flag the maintainers did not edit is either a false alarm or a page they missed, like the `api.md` lines above.
-- **Guardrails:** of 24 fixed test edits, all 21 unsafe ones were blocked and all 3 correct ones were allowed.
+- **Guardrails:** of 26 fixed test edits, all 26 unsafe ones were blocked.
 - **Cost:** detection takes about 1.5 s per release pair and makes no model calls. With a key, there is one model call per flagged place, at most 25 per run, and a $0.50 cap per run for OpenAI. If OpenAI rejects the key, the run switches to the offline rules after one call.
 - **Honest caveat:** I improved the detection rules while looking at these three pairs. On six other click release pairs there were no false alarms, but also almost no API changes, so they cannot measure recall. A second project would be the next test.
 
@@ -70,9 +70,16 @@ A proposed edit is written only if every check passes. Otherwise the place is fl
 - It deletes no more than half of the section.
 - It adds no links and nothing that looks like a credential.
 - It calls only names that exist in the new code (no invented API).
+- It brings in no API name the project did not name as the replacement: only a rename's target, or the "Use 'X' instead" from the deprecation warning.
+- It never edits an API-reference entry such as `autoclass`: dropping or annotating one is a person's decision.
 - It keeps code fences intact, and Python examples still parse.
 - The outdated reference is really gone afterwards.
-- It never rewrites an API-reference entry such as `autoclass`: dropping or annotating one is a person's decision.
+
+**What the first live run taught me.** The first time I ran OpenAI on click, the model judged all six places correctly, but proposed five wrong fixes, and my guardrails at the time let them through:
+- it replaced `get_text_stream` with `make_input_stream`, a different function;
+- it rewrote the `BaseCommand` and `MultiCommand` entries so that `Command` was documented twice.
+
+Every name it used existed in click, so the safety checks passed. I added the last two rules above. Now all six places go to a person with a clear reason, and nothing wrong is written. The model's judgement is useful; its rewrites need limits that code enforces.
 
 Doc text is sent to the model between markers, as data, with the instruction not to follow it. The model has no tools, so injected text cannot run anything. If the model fails or returns bad JSON, the place is flagged, never silently passed.
 
@@ -103,10 +110,10 @@ Doc text is sent to the model between markers, as data, with the instruction not
 
 ### Current status and future work
 
-Built and tested: detection, the OpenAI, `claude -p` and rules reasoners, guardrails, the patch, reports, the Agent Board post, cards, `ask`, the webhook service, and 15 offline tests. The model paths are tested against a fake OpenAI server and a fake `claude` CLI. The live prompt quality is not measured yet.
+Built and tested: detection, the OpenAI, `claude -p` and rules reasoners, guardrails, the patch, reports, the Agent Board post, cards, `ask`, the webhook service, and 17 offline tests. The model paths are tested against a fake OpenAI server and a fake `claude` CLI. One live OpenAI run on click: 6 calls, $0.005, 12 s. All six verdicts were correct, and all six fixes were rightly blocked.
 
 Next steps:
-- Measure the live verdicts against the release-replay labels.
+- Measure the live verdicts on more releases and projects.
 - Open the patch as a pull request.
 - Support languages beyond Python (tree-sitter).
 - Catch behaviour changes that keep the same signature.

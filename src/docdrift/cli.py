@@ -91,7 +91,8 @@ def cmd_eval(a) -> int:
     s = result["summary"]
     print(f"Release replay: recall {s['recall']} · precision (lower bound) {s['precision_lower_bound']} · "
           f"{s['flagged_and_edited']}/{s['edited_by_maintainers']} maintainer edits flagged in advance · {s['seconds']} s")
-    print(f"Guardrails: {result['guardrails']['bad_blocked']} bad edits blocked · {result['guardrails']['good_allowed']} correct edits allowed")
+    g = result["guardrails"]
+    print(f"Guardrails: {g['bad_blocked']} unsafe edits blocked" + ("" if g["good_allowed"].endswith("/0") else f" · {g['good_allowed']} correct edits allowed"))
     print(f"Details: {out / 'eval.md'}")
     return 0
 

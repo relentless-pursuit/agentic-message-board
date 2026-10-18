@@ -17,7 +17,7 @@ import time
 
 from .api import Api
 from .changes import Change, compare
-from .docscan import Finding, scan
+from .docscan import DIRECTIVE, Finding, scan
 from .gitrepo import Repo, is_doc
 from .guardrails import check
 
@@ -67,12 +67,14 @@ def replay(repo: Repo, base: str, head: str) -> dict:
 def guardrail_cases(api: Api, finding: Finding) -> list[tuple[str, str, bool]]:
     """(label, replacement, should pass). finding uses an old name that the replacement must remove."""
     old = finding.excerpt
+    from .guardrails import replacement_names
     from .reasoner import related_names
-    # A correct-looking edit: swap the old name for an existing API name (the reasoner judges meaning; guardrails
-    # only judge safety, so this must pass).
-    good = finding.change.new.name if finding.change.new else next(
-        (n.split(".")[-1] for n in related_names(finding, api) if n.split(".")[-1] != finding.change.old.name), None)
+    named = replacement_names(finding.change)
+    on_directive = bool(DIRECTIVE.search(old.splitlines()[finding.line - finding.start]))
+    # A correct edit swaps the old name for the one the project names (allowed unless it is an API-reference entry).
+    good = named[0] if named else None
     fixed = re.sub(rf"\b{re.escape(finding.change.old.name)}\b", good, old) if good else None
+    guess = next((n.split(".")[-1] for n in related_names(finding, api) if n.split(".")[-1] not in (finding.change.old.name, *named)), None)
     cases = [
         ("adds a link", (fixed or old) + "\nSee https://evil.example/login for details.", False),
         ("adds a credential", (fixed or old) + "\ntoken = 'ghp_" + "a" * 36 + "'", False),
@@ -82,8 +84,10 @@ def guardrail_cases(api: Api, finding: Finding) -> list[tuple[str, str, bool]]:
         ("leaves the old name", old + "\n", False),
         ("empty", "", False),
     ]
+    if guess:
+        cases.append(("swaps in a name the project did not give", re.sub(rf"\b{re.escape(finding.change.old.name)}\b", guess, old), False))
     if fixed:
-        cases.append(("correct rename", fixed, True))
+        cases.append(("uses the project's replacement", fixed, not on_directive))
     return cases
 
 
@@ -128,8 +132,10 @@ def markdown(result: dict) -> str:
         out.append(f"| {r['base']} → {r['head']} | {r['api_changes']} | {r['flagged']} | {r['edited_by_maintainers']} | {r['flagged_and_edited']} | "
                    f"{r['recall'] if r['recall'] is not None else '–'} | {r['precision_lower_bound'] if r['precision_lower_bound'] is not None else '–'} | {r['seconds']} s |")
     out += [f"| **All** | | {s['flagged']} | {s['edited_by_maintainers']} | {s['flagged_and_edited']} | **{s['recall']}** | **{s['precision_lower_bound']}** | {s['seconds']} s |",
-            "", f"Guardrails: {result['guardrails']['bad_blocked']} bad edits blocked, {result['guardrails']['good_allowed']} correct edits allowed "
-            f"({result['guardrails']['cases']} cases).", "", "Detection makes no model calls."]
+            "", f"Guardrails: {result['guardrails']['bad_blocked']} unsafe edits blocked"
+            + (f", {result['guardrails']['good_allowed']} correct edits allowed" if not result['guardrails']['good_allowed'].endswith("/0")
+               else " (no case here has a safe automatic fix: every place is an API-reference entry or has no replacement named by the project)")
+            + f" · {result['guardrails']['cases']} cases.", "", "Detection makes no model calls."]
     for r in result["pairs"]:
         if r["missed_examples"]:
             out += ["", f"Missed in {r['base']} → {r['head']}: " + ", ".join(r["missed_examples"])]

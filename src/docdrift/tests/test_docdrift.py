@@ -202,9 +202,18 @@ class DocDriftTest(unittest.TestCase):
             "still outdated": f.excerpt + "\n",
             "deleted": "x",
             "broken fence": good.replace("```python", ""),
+            "guessed replacement": f.excerpt.replace("mylib.fetch(", "mylib.draw("),
         }
         for label, text in bad.items():
             self.assertFalse(check(f, text, new).ok, label)
+
+    def test_api_reference_entries_are_never_auto_edited(self):
+        new = Api.at(self.repo, "v2")
+        doc = "API\n\n.. autofunction:: fetch\n"
+        f = next(f for f in scan({"docs/api.rst": doc}, compare(Api.at(self.repo, "v1"), new), new) if f.change.kind == "renamed")
+        result = check(f, f.excerpt.replace("fetch", "download"), new)
+        self.assertFalse(result.ok)
+        self.assertTrue(any("API-reference" in x for x in result.failures))
 
     def test_openai_reasoner_uses_strict_schema_and_no_tools(self):
         def reply(method, path, body):
