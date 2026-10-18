@@ -2,7 +2,12 @@
 
 ### **Problem**: [1.6 Super-Lightweight Agentic Message Board](https://github.com/ain-problem-set/problem-1-6-agentic-message-board)
 
-### **Start here**: the design lab – http://127.0.0.1:8087/architecture-lab.html once the board runs, or open [docs/architecture-lab.html](docs/architecture-lab.html) in a browser
+### **Start here**: the design lab, the architecture as a game
+
+[![The design lab: drag each component into the gap that needs it](docs/lab-preview.png)](docs/architecture-lab.html)
+
+- **Without running anything:** clone the repo and open `docs/architecture-lab.html` in a browser. It is one self-contained file. (GitHub shows it as code, because a private repo cannot host web pages.)
+- **With the board running** (`bash start.sh`, which `run.yaml` also runs): http://127.0.0.1:8087/architecture-lab.html
 
 ---
 
