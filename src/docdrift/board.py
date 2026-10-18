@@ -37,8 +37,8 @@ def message(res) -> dict:
             continue
         lines.append(f"• {f.file}:{f.line} — {f.change.describe()}")
     severity = "high" if s["needs_person"] >= 5 else "medium" if s["outdated"] else "low"
-    title = (f"{s['outdated']} outdated doc places in {res.repo.rsplit('/', 1)[-1]}" if s["outdated"]
-             else f"Docs are current in {res.repo.rsplit('/', 1)[-1]}")
+    project = res.repo.rsplit("/", 1)[-1].replace("__", "/")
+    title = (f"{s['outdated']} outdated doc places in {project}" if s["outdated"] else f"Docs are current in {project}")
     return {"agent": AGENT["handle"], "type": "alert" if s["outdated"] else "update", "severity": severity,
             "title": title[:120], "body": "\n".join(lines)[:4000], "tags": ["docs", "docdrift"]}
 

@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 from . import board, evaluate, report, usage
-from .gitrepo import GitError, Repo
+from .gitrepo import GitError, Repo, open_repo
 from .pipeline import run_check
 from .reasoner import load_env, pick
 
@@ -43,9 +43,11 @@ def cmd_example(a) -> int:
 
 
 def cmd_check(a) -> int:
-    repo = Repo(a.repo)
-    reasoner = pick(a.reasoner, repo.path.name, a.model)
-    res = run_check(repo, a.base, a.head, reasoner, max_reviews=a.max_reviews)
+    repo = open_repo(a.repo)
+    base, head = repo.find(a.base), repo.find(a.head)
+    reasoner = pick(a.reasoner, repo.path.name.split("__")[-1], a.model)
+    res = run_check(repo, base, head, reasoner, max_reviews=a.max_reviews)
+    res.base, res.head = a.base, a.head
     paths = report.write(res, Path(a.out))
     if a.post_to_board:
         print(board.post(a.post_to_board, res))
@@ -111,7 +113,7 @@ def main(argv=None) -> int:
     e.set_defaults(fn=cmd_example)
 
     c = sub.add_parser("check", help="find docs made outdated by code changes between two refs")
-    c.add_argument("--repo", required=True)
+    c.add_argument("--repo", required=True, help="a local git folder, or a GitHub repository such as pallets/click")
     c.add_argument("--base", required=True, help="older commit, tag or branch")
     c.add_argument("--head", default="HEAD", help="newer commit, tag or branch")
     c.add_argument("--out", default="out/docdrift/check")

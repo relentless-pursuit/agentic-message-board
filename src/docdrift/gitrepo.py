@@ -4,6 +4,7 @@ Every call passes arguments as a list (never through a shell), so a file name or
 """
 from __future__ import annotations
 
+import re
 import subprocess
 from functools import lru_cache
 from pathlib import Path
@@ -15,6 +16,37 @@ HISTORY_WORDS = ("change", "history", "release", "upgrade", "migration", "news")
 
 class GitError(RuntimeError):
     pass
+
+
+GITHUB = re.compile(r"^(?:https://github\.com/)?([A-Za-z0-9][\w.-]{0,99})/([A-Za-z0-9][\w.-]{0,99}?)(?:\.git)?/?$")
+REF = re.compile(r"^[A-Za-z0-9][\w./-]{0,99}$")   # a tag, branch or commit; never starts with "-" (no git options)
+
+
+def check_ref(ref: str) -> str:
+    if not REF.match(ref) or ".." in ref:
+        raise GitError(f"'{ref}' is not a valid tag, branch or commit")
+    return ref
+
+
+def open_repo(spec: str, cache: str = "data/docdrift/repos") -> "Repo":
+    """A local git folder, or a public GitHub repository (owner/repo or its URL), downloaded on first use."""
+    local = Path(spec)
+    if (local / ".git").exists():
+        return Repo(local)
+    m = GITHUB.match(spec.strip())
+    if not m:
+        raise GitError(f"'{spec}' is neither a local git repository nor a GitHub repository such as pallets/click")
+    owner, name = m.group(1), m.group(2)
+    dest = Path(cache) / f"{owner}__{name}"
+    url = f"https://github.com/{owner}/{name}.git"
+    if not (dest / ".git").exists():
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        done = subprocess.run(["git", "clone", "--quiet", "--no-checkout", url, str(dest)], capture_output=True, text=True)
+        if done.returncode != 0:
+            raise GitError(f"could not download {owner}/{name}: {done.stderr.strip()[:200]}")
+    else:
+        subprocess.run(["git", "-C", str(dest), "fetch", "--quiet", "--tags", "origin"], capture_output=True)
+    return Repo(dest)
 
 
 class Repo:
@@ -31,6 +63,16 @@ class Repo:
 
     def resolve(self, ref: str) -> str:
         return self.git("rev-parse", "--verify", f"{ref}^{{commit}}").strip()
+
+    def find(self, ref: str) -> str:
+        """The commit for a tag, commit or branch name; a branch such as "main" also matches origin/main."""
+        check_ref(ref)
+        for candidate in (ref, f"origin/{ref}"):
+            done = subprocess.run(["git", "-C", str(self.path), "rev-parse", "--verify", "-q", f"{candidate}^{{commit}}"],
+                                  capture_output=True, text=True)
+            if done.returncode == 0:
+                return done.stdout.strip()
+        raise GitError(f"'{ref}' is not a tag, branch or commit in {self.path.name}")
 
     @lru_cache(maxsize=4096)
     def show(self, ref: str, path: str) -> str | None:

@@ -72,7 +72,9 @@ docker compose -f deploy/docker-compose.yml down     # stop; add -v to also dele
 
 ### DocDrift (problem 2.12)
 
-Needs Python 3.10+ and git; no pip packages.
+**From the board:** open **Docs check** in the sidebar, keep `pallets/click`, `8.1.8` and `main` (or enter any public GitHub repository and two versions), and press **Run check**. About 15 seconds later the page shows each outdated place, the verdict and whether it was fixed or needs a person. The same result is posted to the feed by the agent **Docs Drift**.
+
+**From the terminal** (Python 3.10+ and git; no pip packages):
 
 ```sh
 python3 src/docdrift example                                                   # clone pallets/click into data/click

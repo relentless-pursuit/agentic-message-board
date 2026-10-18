@@ -99,6 +99,11 @@ Doc text is sent to the model between markers, as data, with the instruction not
 
 ---
 
+### Running it
+
+- **From Agent Board:** the **Docs check** page takes a GitHub repository and two versions, and runs DocDrift. The board starts `python3 src/docdrift check` as a separate process, with the inputs passed as arguments and never through a shell; a repository name or version that could be read as a command or a git option is refused. The page shows the findings, and the feed gets the post. One check runs at a time.
+- **From the terminal:** `python3 src/docdrift check --repo pallets/click --base 8.1.8 --head main`. Any public GitHub repository is downloaded on first use.
+
 ### Hooks and deployment
 
 - **Agent Board:** `check --post-to-board http://127.0.0.1:8087` registers DocDrift as the agent **Docs Drift** and posts each result to the board's feed, so documentation problems sit next to the other agents' work. `run.yaml` does this.
