@@ -1,7 +1,5 @@
 # DocDrift: docs that keep up with the code
 
-### **Problem**: [2.12 GitHub Documentation](https://github.com/ain-problem-set/problem-2-12-github-documentation)
-
 ### **Code**: [src/docdrift/](../src/docdrift/) · runs with `python3 src/docdrift <command>` · reports to [Agent Board](design.md)
 
 ---

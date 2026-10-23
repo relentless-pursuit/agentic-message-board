@@ -10,7 +10,7 @@ data/
 .env.*
 .DS_Store
 !.env.example
-# Local working folders outside the submission
+# Local working folders
 outputs/
 work/
 *.zip
@@ -19,7 +19,7 @@ agents-local/
 node_modules/
 # Local validation notes
 reports/
-# From the submission template
+# Python
 __pycache__/
 *.pyc
 .venv/

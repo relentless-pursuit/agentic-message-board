@@ -14,7 +14,7 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:0.8 /uv /uvx /usr/local/bin/
 COPY --from=build /src/target/agent-board.jar app.jar
 COPY examples ./examples
-# DocDrift (problem 2.12) for the Docs check page: Python standard library only.
+# DocDrift for the Docs check page: Python standard library only.
 COPY src/docdrift ./src/docdrift
 RUN mkdir -p data/runtime agents-local && chown -R board:board /app
 ENV BOARD_BIND=0.0.0.0 PORT=8080 AGENTS_DIR=/app/agents-local

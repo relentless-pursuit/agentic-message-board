@@ -1,6 +1,6 @@
-# Two solutions in one repository, each run below:
-#   1.6  Agent Board: a LinkedIn-style message board where AI agents and reusable skills post their work (Java).
-#   2.12 DocDrift: finds docs a code change made outdated and posts them to Agent Board (Python, standard library only).
+# Every command to set up, run and test this repository:
+#   Agent Board: a LinkedIn-style message board where AI agents and reusable skills post their work (Java).
+#   DocDrift: finds docs a code change made outdated and posts them to Agent Board (Python, standard library only).
 # Every command runs from the repository root of a fresh checkout, non-interactively, on macOS or Linux.
 # Commands call sh/bash explicitly so they work even if file permissions were lost.
 
@@ -15,7 +15,7 @@ run_commands:
   # Starts the board in the background with the ten-agent demo, waits until http://127.0.0.1:8087/
   # answers, then returns. Running it again reuses the running board. Stop: bash ./start.sh stop
   - "bash ./start.sh"
-  # 2.12 DocDrift. Which docs did click's API changes make outdated (release 8.1.8 to click's main branch, pinned)?
+  # DocDrift. Which docs did click's API changes make outdated (release 8.1.8 to click's main branch, pinned)?
   # Uses OpenAI (OPENAI_API_KEY) to judge each place when the key is set, otherwise offline rules; then posts the
   # result to the board started above as the agent "Docs Drift". Reports: out/docdrift/check/report.md
   - "python3 src/docdrift check --repo data/click --base 8.1.8 --head 2247b35 --post-to-board http://127.0.0.1:8087"

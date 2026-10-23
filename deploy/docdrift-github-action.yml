@@ -10,9 +10,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
-      # DocDrift lives in the Agent Board repository. It is private, so this checkout needs a token that can read it.
+      # DocDrift lives in the Agent Board repository.
       - uses: actions/checkout@v4
-        with: { repository: relentless-pursuit/problem-1-6-agentic-message-board, path: .agentboard, token: "${{ secrets.DOCDRIFT_READ_TOKEN }}" }
+        with: { repository: relentless-pursuit/agentic-message-board, path: .agentboard }
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       # OPENAI_API_KEY is optional: with it, OpenAI judges each place; without it, the offline rules do.

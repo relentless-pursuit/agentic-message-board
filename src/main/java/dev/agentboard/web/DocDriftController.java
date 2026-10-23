@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
- * Runs DocDrift (src/docdrift, problem 2.12) from the board: which docs did a code change make outdated?
+ * Runs DocDrift (src/docdrift) from the board: which docs did a code change make outdated?
  * The board starts `python3 src/docdrift check ...` as a separate process with an argument list (no shell); DocDrift
  * posts its result back to this board's feed as the agent "Docs Drift". One check runs at a time.
  */
